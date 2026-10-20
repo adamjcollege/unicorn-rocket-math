@@ -12,7 +12,7 @@ const plural=(n,w,p)=>n===1?w:(p||w+'s');
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const PLACE=['ones','tens','hundreds','thousands','ten thousands','hundred thousands'];
 const UNIT=['one','ten','hundred','thousand','ten thousand'];
-const PLACE_SHORT=['Ones','Tens','Hund.','Thou.','Ten Th.'];
+const PLACE_SHORT=['Ones','Tens','Hund.','Thou.','Ten Th.','Hun. Th.'];
 const digitsOf=n=>String(n).split('').map(Number);
 const digitAt=(n,p)=>Math.floor(n/10**p)%10;
 const PRAISE=['Yes!','Nailed it!','Rocket-powered thinking!','Sparkly work!','Exactly right!','Super!','You got it!','Stellar!','Bolt-tastic!'];
@@ -26,6 +26,9 @@ const KEY='unicorn-rocket-math-v1';
 let progress={name:'',stars:0,best:{},sound:true,drafts:{},played:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s)progress=Object.assign(progress,s);}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(progress));}catch(e){}}
+const DEFAULT_SETTINGS={mulMethod:'area',divMethod:'long',showTimed:false,timedSecs:60,streakGoal:15,readGate:true,ttsRate:.92};
+progress.settings=Object.assign({},DEFAULT_SETTINGS,progress.settings||{});
+const S=()=>progress.settings;
 
 /* ===================== mission registry ===================== */
 const MISSIONS=[],BYID={};
@@ -41,7 +44,8 @@ const TTS={
     const vs=speechSynthesis.getVoices();
     this.voice=vs.find(v=>/en-US/i.test(v.lang)&&/Samantha|Google US|Jenny|Aria|Natural/i.test(v.name))||vs.find(v=>/en-US/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null;
   },
-  speak(text,onend,rate=.92){
+  speak(text,onend,rate){
+    rate=rate||S().ttsRate||.92;
     if(!this.ok){onend&&setTimeout(onend,0);return false}
     try{
       this.pickVoice();const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=rate;if(this.voice)u.voice=this.voice;
@@ -86,21 +90,29 @@ function drawSky(){
   for(let i=0;i<Math.round(w*h/5000);i++){g.globalAlpha=.3+rnd()*.7;g.fillStyle=cols[Math.floor(rnd()*cols.length)];g.beginPath();g.arc(rnd()*w,rnd()*h,rnd()*1.6+.3,0,7);g.fill()}
   g.globalAlpha=1;
 }
-const fx=$('#fx'),fctx=fx.getContext('2d');let bits=[],running=false;
+const fx=$('#fx'),fctx=fx.getContext('2d');let bits=[],running=false,lastT=0;
+fx.style.visibility='hidden';
 function burst(x,y,n){
   if(reduceMotion)return;
-  const dpr=Math.min(devicePixelRatio||1,2);fx.width=innerWidth*dpr;fx.height=innerHeight*dpr;fctx.setTransform(dpr,0,0,dpr,0,0);
-  const cols=['#ffc843','#ff6fc0','#3fdcb4','#73c2ff','#b39bff','#ffffff'];
-  for(let i=0;i<n;i++)bits.push({x,y,vx:(Math.random()-.5)*11,vy:-Math.random()*10-3,r:4+Math.random()*6,c:pick(cols),rot:Math.random()*6,vr:(Math.random()-.5)*.3,life:1});
-  if(!running){running=true;requestAnimationFrame(tick)}
+  const dpr=Math.min(devicePixelRatio||1,2);
+  if(!running){fx.width=Math.round(innerWidth*dpr);fx.height=Math.round(innerHeight*dpr)}
+  fctx.setTransform(dpr,0,0,dpr,0,0);fx.style.visibility='visible';
+  const cols=['#ffc843','#ff6fc0','#3fdcb4','#73c2ff','#b39bff','#ffffff'],now=performance.now();
+  for(let i=0;i<n;i++)bits.push({x,y,vx:(Math.random()-.5)*11,vy:-Math.random()*10-3,r:4+Math.random()*6,c:pick(cols),rot:Math.random()*6,vr:(Math.random()-.5)*.3,born:now});
+  if(!running){running=true;lastT=now;requestAnimationFrame(tick)}
 }
 function drawStar(x,y,r,rot){fctx.beginPath();for(let i=0;i<10;i++){const a=rot+i*Math.PI/5,rr=i%2?r*.45:r;fctx.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}fctx.closePath();fctx.fill()}
-function tick(){
-  fctx.clearRect(0,0,innerWidth,innerHeight);
-  bits.forEach(p=>{p.vy+=.3;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.rot+=p.vr;p.life-=.011;fctx.globalAlpha=Math.max(p.life,0);fctx.fillStyle=p.c;drawStar(p.x,p.y,p.r,p.rot)});
+function tick(now){
+  if(!running)return;
+  const dt=Math.min(3,(now-lastT)/16.7);lastT=now;
+  fctx.clearRect(0,0,fx.width,fx.height);
+  bits.forEach(p=>{p.vy+=.3*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.99,dt);p.rot+=p.vr*dt;p.life=1-(now-p.born)/1700;fctx.globalAlpha=Math.max(p.life,0);fctx.fillStyle=p.c;drawStar(p.x,p.y,p.r,p.rot)});
+  fctx.globalAlpha=1;
   bits=bits.filter(p=>p.life>0&&p.y<innerHeight+30);
-  if(bits.length)requestAnimationFrame(tick);else{running=false;fctx.clearRect(0,0,innerWidth,innerHeight)}
+  if(bits.length)requestAnimationFrame(tick);else stopFx();
 }
+// Clear and shrink the canvas, then hide it, so no stars can linger (iOS sometimes skips the last repaint)
+function stopFx(){running=false;bits=[];fctx.setTransform(1,0,0,1,0,0);fctx.clearRect(0,0,fx.width,fx.height);fx.width=1;fx.height=1;fx.style.visibility='hidden'}
 
 /* ===================== app plumbing ===================== */
 let mission=null,shakeNext=false;
@@ -122,7 +134,7 @@ const app={
     mission.idx++;renderFuel();this.clearInput();this.enter=null;sound('win');
     const r=$('#work').getBoundingClientRect();burst(r.left+r.width/2,Math.max(80,r.top+Math.min(r.height,400)/3),60);
     this.say(`<b>${pick(SOLVED)}</b> ${summary}`,'cheer');
-    const nx=$('#next');nx.textContent=mission.idx>=mission.total?'Launch the rocket! 🚀':'Next →';nx.hidden=false;
+    const nx=$('#next');nx.textContent=mission.idx>=mission.total?(mission.def.repeat?'Another problem →':'Launch the rocket! 🚀'):'Next →';nx.hidden=false;
     setTimeout(()=>nx.focus({preventScroll:true}),30);
   }
 };
@@ -232,20 +244,22 @@ const Q=spec=>new StepQ(spec);
 function show(id){['home','mission','done'].forEach(s=>$('#'+s).hidden=s!==id);window.scrollTo(0,0)}
 function starStr(n){return '★'.repeat(n)+`<span class="off">${'★'.repeat(3-n)}</span>`}
 function renderFuel(){$('#fuel').innerHTML=Array.from({length:mission.total},(_,i)=>`<i class="${i<mission.idx?'on':''}"></i>`).join('')}
+const levelName=(def,l)=>def.levelNames?def.levelNames[l]:LEVEL_NAMES[l];
+function leaveProblem(){if(mission&&mission.problem&&mission.problem.dispose)mission.problem.dispose()}
 function startMission(id,level){
   const def=BYID[id];if(!def)return;
-  TTS.stop();
+  leaveProblem();TTS.stop();stopFx();
   mission={def,id,level,idx:0,total:5,mistakes:0,hints:0,stepMiss:0,ctx:{seen:new Set()},problem:null};
   if(def.setup)def.setup(level,mission.ctx);
   mission.total=def.count?def.count(level,mission.ctx):5;
   const g=GUIDES[def.guide||'comet'];
   $('#avatar-use').setAttribute('href',g.href);
-  $('#m-name').textContent=def.title;$('#m-level').textContent=LEVEL_NAMES[level]+' · '+def.levels[level];
-  $('#manual').innerHTML=def.manual||'';$('#manual').hidden=true;$('#howto').textContent='How to';$('#howto').hidden=!def.manual;
+  $('#m-name').textContent=def.title;$('#m-level').textContent=levelName(def,level)+' · '+def.levels[level];
+  $('#manual').innerHTML=(typeof def.manual==='function'?def.manual():def.manual)||'';$('#manual').hidden=true;$('#howto').textContent='How to';$('#howto').hidden=!def.manual;
   show('mission');renderFuel();nextProblem(true);
 }
 function nextProblem(first){
-  TTS.stop();
+  leaveProblem();TTS.stop();stopFx();
   $('#next').hidden=true;
   app.input={active:false,buffer:'',len:1,onSubmit:null,locked:false};app.enter=null;$('#pad').hidden=true;
   mission.stepMiss=0;
@@ -291,7 +305,7 @@ function missionStars(){
   return m<=Math.ceil(T*.6)?3:m<=Math.ceil(T*1.6)?2:1;
 }
 function finishMission(){
-  TTS.stop();
+  leaveProblem();TTS.stop();
   const stars=missionStars();
   const before=progress.stars;progress.stars+=stars;
   const k=mission.id+mission.level;progress.best[k]=Math.max(progress.best[k]||0,stars);
@@ -304,9 +318,9 @@ function finishMission(){
     :`You finished the whole mission, and working through tricky ones is how brains grow. Fly it again to earn more stars!`;
   const planet=PLANETS.find(p=>before<p.need&&progress.stars>=p.need);
   $('#done-unlock').hidden=!planet;if(planet)$('#done-unlock').textContent=`New planet unlocked: ${planet.name}! You have ★ ${progress.stars} stars.`;
-  const part=ROBOT_PARTS.find(p=>before<p.need&&progress.stars>=p.need);
-  $('#done-part').hidden=!part;if(part)$('#done-part').textContent=`New robot part: ${part.name}! Visit the Hangar to see your robot.`;
-  $('#uplevel').hidden=mission.level>=2;
+  const part=robotUnlock(before,progress.stars);
+  $('#done-part').hidden=!part;if(part)$('#done-part').textContent=`New in the Robot Studio: ${part}! Visit the Hangar to try it on your robot.`;
+  $('#uplevel').hidden=mission.level>=mission.def.levels.length-1;$('#uplevel').textContent=mission.def.nextLabel||'Next level →';
   show('done');
   const L=$('#launch');L.classList.remove('go');void L.offsetWidth;L.classList.add('go');
   sound('launch');setTimeout(()=>burst(innerWidth/2,innerHeight*.35,90),500);
@@ -318,13 +332,10 @@ const PLANETS=[
   {name:'Saturn',need:27,a:'#fff0b0',b:'#c9a23b',ring:true},{name:'Uranus',need:42,a:'#c9fbff',b:'#3aa6b9'},{name:'Neptune',need:60,a:'#a8d8ff',b:'#2e5fd1'},
   {name:'Robot Ring',need:85,a:'#d6f2ff',b:'#5a6bd6',ring:true},{name:'Unicorn Nebula',need:115,a:'#ffc2ea',b:'#8a4fff'}
 ];
-const ROBOT_PARTS=[
-  {id:'body',name:'Body',need:0},{id:'wheels',name:'Wheels',need:4},{id:'arms',name:'Grabber arms',need:10},{id:'head',name:'Head and eyes',need:18},
-  {id:'antenna',name:'Antenna',need:28},{id:'jet',name:'Jetpack',need:40},{id:'horn',name:'Unicorn horn',need:55},{id:'paint',name:'Rainbow paint',need:75},{id:'cape',name:'Star cape',need:100}
-];
 
 /* ===================== events ===================== */
 document.addEventListener('click',e=>{
+  const mm=e.target.closest('[data-method]');if(mm&&mission){S()[mm.dataset.kind==='div'?'divMethod':'mulMethod']=mm.dataset.method;save();startMission(mission.id,mission.level);return}
   const key=e.target.closest('#pad button');if(key){const k=key.dataset.k;if(k==='back')backspace();else if(k==='ok')submit();else press(k);return}
   const a=e.target.closest('[data-act]');
   if(a&&mission&&!$('#mission').hidden&&$('#work').contains(a)){
@@ -334,7 +345,12 @@ document.addEventListener('click',e=>{
 });
 $('#work').addEventListener('input',e=>{const p=mission&&mission.problem;if(p&&p.onInput)p.onInput(e.target)});
 $('#work').addEventListener('keydown',e=>{const p=mission&&mission.problem;if(p&&p.onKey&&e.target.matches('input,textarea'))p.onKey(e)});
-$('#next').onclick=()=>{if(mission.idx>=mission.total)finishMission();else nextProblem()};
+$('#next').onclick=()=>{
+  if(mission.idx>=mission.total){
+    if(mission.def.repeat){progress.stars+=1;progress.played[mission.id]=(progress.played[mission.id]||0)+1;save();startMission(mission.id,mission.level)}
+    else finishMission();
+  }else nextProblem();
+};
 $('#hint').onclick=()=>{
   const p=mission&&mission.problem;if(!p||p.done||!p.hint)return;
   const h=p.hint();if(!h)return;mission.hints++;app.say('✨ '+h,'think');renderWork();

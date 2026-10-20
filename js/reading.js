@@ -203,7 +203,7 @@ function splitSentences(p){
     if(p[j]!==' ')continue;
     let k=j;while(p[k]===' ')k++;
     if(!/[A-Z"“(]/.test(p[k]||''))continue;
-    if(c==='.'&&ABBR.test(p.slice(start,i+1)))continue;
+    if(c==='.'&&(ABBR.test(p.slice(start,i+1))||/(^|\s)[A-Z]\.$/.test(p.slice(start,i+1))))continue;
     out.push(p.slice(start,j).trim());start=k;i=k-1;
   }
   const rest=p.slice(start).trim();if(rest)out.push(rest);
@@ -240,6 +240,7 @@ class ReadQ{
     this.useEv=!!this.q._ev&&this.q._ev.size>0;
   }
   start(){
+    if(!this.ctx.readDone&&!this.listen&&!S().readGate)this.ctx.readDone=true;
     if(!this.ctx.readDone){
       this.phase='gate';
       if(this.listen&&TTS.ok){app.say(`Bolt will read <b>${esc(this.P.title)}</b> out loud. You won't see the words, so listen like a detective! Press <b>Play</b>.`,'happy')}
@@ -371,10 +372,12 @@ class ReadQ{
 /* ---------------- missions ---------------- */
 function readSetup(kind,listen){
   return (level,ctx)=>{
-    const pool=PASSAGES.filter(p=>(kind==='any'||p.mission===kind)&&p.level===level&&!(listen&&p.parts.length>1));
-    const lastKey='last_'+(listen?'listen':kind)+level;const last=progress[lastKey];
-    const choices=pool.filter(p=>p.id!==last);const P=prepPassage(pick(choices.length?choices:pool));
-    progress[lastKey]=P.id;save();
+    const pool=PASSAGES.filter(p=>(kind==='any'?p.mission!=='saga':p.mission===kind)&&p.level===level&&!(listen&&p.parts.length>1));
+    // rotate through every passage at this level before repeating one
+    const key='recent_'+(listen?'listen':kind)+level;let recent=(progress[key]||[]).filter(id=>pool.some(p=>p.id===id));
+    let choices=pool.filter(p=>!recent.includes(p.id));if(!choices.length){recent=recent.slice(-1);choices=pool.filter(p=>!recent.includes(p.id))}
+    const P=prepPassage(pick(choices.length?choices:pool));
+    recent.push(P.id);progress[key]=recent;save();
     ctx.P=P;ctx.listen=listen;ctx.readDone=false;
   };
 }

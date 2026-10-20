@@ -355,14 +355,14 @@ class DivProblem{
   constructor([N,d],level){
     this.N=N;this.d=d;this.level=level;this.D=digitsOf(N);this.n=this.D.length;this.Q=Math.floor(N/d);this.R=N%d;
     let i=0,cur=this.D[0];this.grouped=false;
-    if(cur<d){i=1;cur=cur*10+this.D[1];this.grouped=true}
+    while(cur<d&&i<this.n-1){i++;cur=cur*10+this.D[i];this.grouped=true}
     this.steps=[];
     for(;;){const q=Math.floor(cur/d),prod=q*d,rem=cur-prod;this.steps.push({col:i,cur,q,prod,rem});if(i===this.n-1)break;i++;cur=rem*10+this.D[i]}
     this.si=0;this.phase='divide';this.hintLvl=0;this.glowChip=null;this.done=false;
   }
   get s(){return this.steps[this.si]}
   start(){
-    const pre=`Let's solve <b>${fmt(this.N)} ÷ ${this.d}</b>. `+(this.grouped?`${this.d} can't fit into ${this.D[0]}, so we start with the first two digits: <b>${this.s.cur}</b>. `:'');
+    const pre=`Let's solve <b>${fmt(this.N)} ÷ ${this.d}</b>. `+(this.grouped?`${this.d} can't fit into ${this.D.slice(0,this.s.col).join('')}, so we start with the first ${this.s.col+1} digits: <b>${this.s.cur}</b>. `:'');
     this.ask(pre);
   }
   ask(pre=''){
@@ -926,12 +926,12 @@ defMission({id:'add',zone:'math',sector:'ops',title:'Carry Cargo',sym:'+',color:
 defMission({id:'sub',zone:'math',sector:'ops',title:'Regroup Rescue',sym:'−',color:'#73c2ff',std:['NBT.4'],skill:'Subtraction with regrouping, including across zeros',guide:'comet',
   levels:['2 and 3-digit','Regrouping across zeros','5-digit numbers'],make:(l,i,ctx)=>new SubProblem(uniq(ctx,()=>genSub(l)),l),
   manual:`<h3>How to regroup</h3><ol><li>Start in the <b>ones</b> place. Always do top minus bottom.</li><li>Top digit too small? <b>Regroup!</b> Tap the digit to its left. That digit goes down by 1, and your digit gets 10 more.</li><li>Neighbor is 0? It borrows from <i>its</i> neighbor first.</li><li>Move left, one place at a time.</li></ol><p>Check: answer + bottom number = top number.</p>`});
-defMission({id:'mul',zone:'math',sector:'ops',title:'Product Power-Up',sym:'×',color:'#ff6fc0',std:['NBT.5'],skill:'Multiply with the area model, up to 3-digit × 2-digit',guide:'comet',
-  levels:['2-digit × 1-digit','3 or 4-digit × 1-digit','2 or 3-digit × 2-digit'],make:(l,i,ctx)=>new MulProblem(uniq(ctx,()=>genMul(l)),l),
-  manual:`<h3>Rocket panels (area model)</h3><ol><li>Break each number into place values: 347 = 300 + 40 + 7.</li><li>Multiply each panel. Do the basic fact, then add the zeros: 300 × 60 → 3 × 6 = 18 → 18,000.</li><li>Add all the panels together.</li></ol><p>Same colors mean the same place value.</p>`});
-defMission({id:'div',zone:'math',sector:'ops',title:'Quotient Quest',sym:'÷',color:'#3fdcb4',std:['NBT.6'],skill:'Long division with remainders, up to 4-digit ÷ 1-digit',guide:'comet',
-  levels:['2-digit ÷ 1-digit','3-digit, remainders','4-digit, remainders'],make:(l,i,ctx)=>new DivProblem(uniq(ctx,()=>genDiv(l)),l),
-  manual:`<h3>Daring Missions Soar Beyond</h3><ol><li><b>Divide:</b> how many times does it fit?</li><li><b>Multiply:</b> that answer × the divisor.</li><li><b>Subtract:</b> find what's left over.</li><li><b>Bring down</b> the next digit, then repeat.</li></ol><p>When there are no digits left to bring down, what's left is the <b>remainder</b>.</p>`});
+defMission({id:'mul',zone:'math',sector:'ops',title:'Product Power-Up',sym:'×',color:'#ff6fc0',std:['NBT.5'],skill:'Multiply up to 3-digit × 2-digit: area model, partial products, or lattice',guide:'comet',
+  levels:['2-digit × 1-digit','3 or 4-digit × 1-digit','2 or 3-digit × 2-digit'],make:(l,i,ctx)=>makeMul(uniq(ctx,()=>genMul(l)),l),
+  manual:()=>mulManual(S().mulMethod)+methodSwitch('mul')});
+defMission({id:'div',zone:'math',sector:'ops',title:'Quotient Quest',sym:'÷',color:'#3fdcb4',std:['NBT.6'],skill:'Divide up to 4-digit ÷ 1-digit: long division, partial quotients, or area model',guide:'comet',
+  levels:['2-digit ÷ 1-digit','3-digit, remainders','4-digit, remainders'],make:(l,i,ctx)=>makeDiv(uniq(ctx,()=>genDiv(l)),l),
+  manual:()=>divManual(S().divMethod)+methodSwitch('div')});
 defMission({id:'oa1',zone:'math',sector:'ps',title:'Times as Many',sym:'×?',color:'#ffc843',std:['OA.1'],skill:'Comparison word problems: "times as many" vs. "more than"',guide:'comet',
   levels:['Find the bigger amount','Find the smaller amount','Times or more?'],make:qMake(genOA1),
   manual:`<h3>Comparing with multiplication</h3><ul><li>"<b>3 times as many</b> as 5" means 3 × 5.</li><li>"<b>3 more</b> than 5" means 5 + 3.</li><li>Draw a bar for each amount to see it.</li></ul>`});
