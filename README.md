@@ -7,4 +7,6 @@ Step-by-step 4th grade practice with Comet the unicorn and Bolt the robot, align
 - **Hangar:** Robot Studio and galaxy map. Stars unlock new choices and are never spent.
 - **For grown-ups:** settings, how it works, and a standards coverage table.
 
+On phones, double-tap zoom is off, the Back button returns to Mission Control, the screen stays awake during missions, and it can be added to the home screen as a full-screen app. Multi-digit addition everywhere (outside Fact Fuel-Up) is worked in place-value columns.
+
 It's a static site with no build step: open `index.html`, or publish with GitHub Pages (main branch, root folder). Progress is saved in the browser on each device.

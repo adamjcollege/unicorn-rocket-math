@@ -13,8 +13,13 @@ class PartialProductsProblem extends MulProblem{
     this.boxes.sort((x,y)=>(x.b.z-y.b.z)||(x.a.z-y.a.z)); // ones first, like the written method
   }
   start(){this.askBox(`Let's solve <b>${fmt(this.A)} × ${fmt(this.B)}</b> with partial products. Multiply one place at a time, starting with the ones. `)}
+  nextBox(){return this.boxes.findIndex(b=>b.val===null)} // the written method goes in order
+  act(){return false}
+  sumOrder(){return this.boxes.map(b=>b.val)}
+  finishSum(){this.done=true;this.stage='done';app.solved(`<b>${fmt(this.A)} × ${fmt(this.B)} = ${fmt(this.ans)}</b>. You added ${this.boxes.length} partial products!`)}
   html(){
     const I=app.input;
+    if(this.col)return `<div class="mul"><div class="pp"><div class="pp-n">${fmt(this.A)}</div><div></div><div class="pp-n"><span class="op">×</span>${fmt(this.B)}</div><div></div><div class="pp-rule"></div></div><p class="legend">Add the partial products</p><div class="col-wrap">${this.col.html()}</div>${this.done?`<p class="check-line">${fmt(this.A)} × ${fmt(this.B)} = ${fmt(this.ans)}</p>`:''}</div>`;
     let h=`<div class="pp"><div class="pp-n">${fmt(this.A)}</div><div></div><div class="pp-n"><span class="op">×</span>${fmt(this.B)}</div><div></div><div class="pp-rule"></div>`;
     this.boxes.forEach((bx,k)=>{
       let v;
@@ -124,7 +129,11 @@ class PartialQuotientsProblem{
     if(this.phase==='choose'){app.say(pre+`<b>${fmt(this.rem)}</b> is left. How many groups of ${d} can you take out? Try a friendly number like 100, 10, or 5. <small>(Type it, then press Check.)</small>`,mood);app.setInput({len:String(Math.floor(this.rem/d)).length,onSubmit:v=>this.answer(v)})}
     else if(this.phase==='multiply'){app.say(pre+`<b>${fmt(this.cur.q)} × ${d}</b> = ?`,mood);app.setInput({len:String(this.cur.q*d).length,onSubmit:v=>this.answer(v)})}
     else if(this.phase==='subtract'){app.say(pre+`Take them away: <b>${fmt(this.rem)} − ${fmt(this.cur.prod)}</b> = ?`,mood);app.setInput({len:String(this.rem-this.cur.prod).length,onSubmit:v=>this.answer(v)})}
-    else{app.say(pre+`${fmt(this.rem)} is less than ${d}, so no more groups fit. Now add up all the groups you took out: <b>${this.chunks.map(c=>fmt(c.q)).join(' + ')}</b> = ?`,mood);app.setInput({len:String(this.Q).length,onSubmit:v=>this.answer(v)})}
+    else{
+      const qs=this.chunks.map(c=>c.q),intro=`${fmt(this.rem)} is less than ${d}, so no more groups fit. Now add up all the groups you took out: <b>${qs.map(fmt).join(' + ')}</b>. `;
+      if(qs.length>1&&colWorthy(qs)){this.col=new ColAdd(qs,1,{onDone:()=>this.answer(this.Q)});this.col.start(pre+intro+'Line them up by place value and start with the <b>ones</b>. ');return}
+      app.say(pre+intro+'= ?',mood);app.setInput({len:String(this.Q).length,onSubmit:v=>this.answer(v)});
+    }
   }
   answer(v){
     const d=this.d;
@@ -150,6 +159,7 @@ class PartialQuotientsProblem{
     if(this.phase==='choose'){const f=this.friendly();this.glowChip=f;return l===0?`Look at the friendly facts. Which is the biggest one that is not more than ${fmt(this.rem)}?`:`Try <b>${fmt(f)}</b> groups: ${fmt(f)} × ${d} = ${fmt(f*d)}.`}
     if(this.phase==='multiply'){this.glowChip=this.cur.q;return `${fmt(this.cur.q)} × ${d} = <b>${fmt(this.cur.q*d)}</b>.`}
     if(this.phase==='subtract')return l===0?'Subtract from the bottom number in the ladder.':`${fmt(this.rem)} − ${fmt(this.cur.prod)} = <b>${fmt(this.rem-this.cur.prod)}</b>.`;
+    if(this.col)return this.col.hint();
     return `${this.chunks.map(c=>fmt(c.q)).join(' + ')} = <b>${fmt(this.Q)}</b>.`;
   }
   slot(){const I=app.input;return `<span class="numbox active${shakeNext?' shake':''}">${I.buffer}<i class="caret"></i></span>`}
@@ -162,7 +172,7 @@ class PartialQuotientsProblem{
       h+=row('−',this.phase==='multiply'?this.slot():fmt(this.cur.prod),fmt(this.cur.q),'under');
       if(this.phase==='subtract')h+=row('',this.slot(),'');
     }else if(this.phase==='choose')h+=row('−','?',this.slot(),'under');
-    if(this.phase==='sum'||this.done)h+=`<div></div><div class="pq-n">${this.R?`<span class="rem">remainder ${this.R}</span>`:''}</div><div class="pq-g total">${this.done?fmt(this.Q):this.slot()}</div>`;
+    if(this.phase==='sum'||this.done)h+=`<div></div><div class="pq-n">${this.R?`<span class="rem">remainder ${this.R}</span>`:''}</div><div class="pq-g total">${this.done?fmt(this.Q):this.col?'?':this.slot()}</div>`;
     return h+`</div>`;
   }
   areaHtml(){
@@ -172,11 +182,12 @@ class PartialQuotientsProblem{
     else if(this.phase==='choose')h+=`<div class="pqa-box cur" style="flex:${Math.max(1,tot/d/9)}"><span class="pqa-top">${this.slot()}</span><b>?</b></div>`;
     if(this.rem>0)h+=`<div class="pqa-left" style="flex:${Math.max(this.rem/d,tot/d/9)}">${this.phase==='subtract'?this.slot():fmt(this.rem)}<small>left</small></div>`;
     h+=`</div></div>`;
-    h+=`<div class="eq" style="font-size:clamp(1.1rem,4vw,1.5rem)">${fmt(this.N)} ÷ ${d} = ${this.chunks.length?this.chunks.map(c=>fmt(c.q)).join(' + '):'?'}${this.phase==='sum'?' = '+this.slot():this.done?` = ${fmt(this.Q)}${this.R?' R '+this.R:''}`:this.chunks.length?' + …':''}</div>`;
+    h+=`<div class="eq" style="font-size:clamp(1.1rem,4vw,1.5rem)">${fmt(this.N)} ÷ ${d} = ${this.chunks.length?this.chunks.map(c=>fmt(c.q)).join(' + '):'?'}${this.phase==='sum'&&!this.done?' = '+(this.col?'?':this.slot()):this.done?` = ${fmt(this.Q)}${this.R?' R '+this.R:''}`:this.chunks.length?' + …':''}</div>`;
     return h;
   }
   html(){
     const d=this.d;let h=this.mode==='area'?this.areaHtml():this.ladderHtml();
+    if(this.col)h+=`<p class="legend">Add up the groups</p><div class="col-wrap">${this.col.html()}</div>`;
     h+=`<div class="helper-table"><p>Friendly facts for ${d}s</p><div class="chips">`;
     FRIENDLY.slice().reverse().filter(q=>q*d<=Math.max(this.N,d)).forEach(q=>h+=`<span class="chip${this.glowChip===q?' glow':''}">${fmt(q)} × ${d} = ${fmt(q*d)}</span>`);
     return `<div class="mul">${h}</div></div></div>`;
@@ -189,7 +200,7 @@ function makeDiv(pair,l,m){m=m||S().divMethod;return m==='long'?new DivProblem(p
 function mulManual(m){
   if(m==='partial')return `<h3>Partial products</h3><ol><li>Multiply one place at a time, starting with the ones: 6 × 7, then 6 × 40, then 6 × 300.</li><li>Write each answer on its own line.</li><li>Add all the lines together.</li></ol><p>Remember the zeros! 6 × 40 = 240.</p>`;
   if(m==='lattice')return `<h3>Lattice method</h3><ol><li>Multiply the top digit by the side digit for each box. Tens go in the top triangle, ones in the bottom.</li><li>Add along each diagonal, starting at the bottom right.</li><li>If a diagonal adds to 10 or more, carry to the next diagonal.</li><li>Read the answer down the left and across the bottom.</li></ol>`;
-  return `<h3>Rocket panels (area model)</h3><ol><li>Break each number into place values: 347 = 300 + 40 + 7.</li><li>Multiply each panel. Do the basic fact, then add the zeros: 300 × 60 → 3 × 6 = 18 → 18,000.</li><li>Add all the panels together.</li></ol><p>Same colors mean the same place value.</p>`;
+  return `<h3>Rocket panels (area model)</h3><ol><li>Break each number into place values: 347 = 300 + 40 + 7.</li><li>Multiply each panel. Do the basic fact, then add the zeros: 300 × 60 → 3 × 6 = 18 → 18,000. Start with the smallest panel (bottom right), or tap any panel you like.</li><li>Add all the panels in columns, starting with the ones.</li></ol><p>Same colors mean the same place value.</p>`;
 }
 function divManual(m){
   if(m==='partial')return `<h3>Partial quotients</h3><ol><li>Take out a friendly number of groups, like 100, 10, or 5.</li><li>Multiply to see how much that is, then subtract it.</li><li>Keep going until what's left is smaller than the divisor.</li><li>Add up all your groups. That's the answer! What's left is the remainder.</li></ol><p>Any chunk that fits is OK. Bigger chunks are faster.</p>`;

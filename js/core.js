@@ -157,6 +157,9 @@ class StepQ{
   start(){this.ask(this.spec.intro||'')}
   ask(pre='',mood){
     const s=this.st;this.hintLvl=0;this.tried=new Set();this.picks=new Set();this.glow=null;
+    // multi-digit sums are worked in place-value columns, right to left
+    this.col=s.kind==='num'&&s.add&&colWorthy(s.add)?new ColAdd(s.add,1,{onDone:()=>this.advance()}):null;
+    if(this.col){this.col.start(pre+s.prompt+' Line up the places and add, starting with the <b>ones</b>. ');return}
     app.say(pre+s.prompt,mood||(pre?'cheer':'happy'));
     if(s.kind==='num')app.setInput({len:s.len||String(s.answer).length,onSubmit:v=>this.answer(v)});
     else{app.clearInput();mission.stepMiss=0;if(s.kind==='pick')app.enter=()=>{this.checkPick();renderWork()}}
@@ -177,6 +180,7 @@ class StepQ{
   advance(){
     const s=this.st;
     if(s.record)this.records.push(typeof s.record==='function'?s.record(this):s.record);
+    else if(this.col)this.records.push(`${this.col.eq()} = ${fmt(this.col.ans)}`);
     this.i++;
     if(this.i>=this.spec.steps.length){this.done=true;app.solved(typeof this.spec.summary==='function'?this.spec.summary(this):(this.spec.summary||''));return}
     this.ask(app.praise()+(s.next||''));
@@ -210,6 +214,7 @@ class StepQ{
   hint(){
     const s=this.st,h=s.hints||this.spec.hints||[];const l=this.hintLvl++;
     this.showHintViz=true;
+    if(this.col)return this.col.hint();
     if(s.onHint)s.onHint(this,l);
     if(s.kind==='mc'&&l>=h.length){ // remove a wrong choice
       const wrong=s.choices.map((_,k)=>k).filter(k=>k!==s.answer&&!this.tried.has(k));
@@ -222,14 +227,15 @@ class StepQ{
     const sp=this.spec,s=this.done?null:this.st;
     let viz=typeof sp.viz==='function'?sp.viz(this):(sp.viz||'');
     const hasSlot=viz.includes('{{slot}}');
-    viz=viz.replace('{{slot}}',s&&s.kind==='num'?this.slot():`<span class="numbox">?</span>`);
+    viz=viz.replace('{{slot}}',s&&s.kind==='num'&&!this.col?this.slot():`<span class="numbox">?</span>`);
     let h='<div class="q">';
     if(sp.text)h+=`<div class="q-text">${typeof sp.text==='function'?sp.text(this):sp.text}</div>`;
     if(viz)h+=`<div class="q-viz">${viz}</div>`;
     if(this.records.length)h+=`<div class="records">${this.records.map(r=>`<div class="rec">✓ ${r}</div>`).join('')}</div>`;
     if(s){
       if(s.ask)h+=`<div class="q-text" style="font-size:1.08rem"><b>${s.ask}</b></div>`;
-      if(s.kind==='num'&&!hasSlot)h+=`<div class="ans-row">${s.label?`<span>${s.label}</span>`:''}${this.slot()}${s.unit?`<span>${s.unit}</span>`:''}</div>`;
+      if(this.col)h+=`<div class="q-text" style="font-size:1.05rem"><b>${s.prompt}</b></div><div class="col-wrap">${this.col.html()}</div>`;
+      else if(s.kind==='num'&&!hasSlot)h+=`<div class="ans-row">${s.label?`<span>${s.label}</span>`:''}${this.slot()}${s.unit?`<span>${s.unit}</span>`:''}</div>`;
       if(s.kind==='mc')h+=`<div class="choices${s.short?' short':''}${this.lock?' locked':''}">${s.choices.map((c,k)=>`<button type="button" class="choice${this.tried.has(k)?' no':''}" data-act="choose" data-v="${k}"${this.tried.has(k)?' disabled':''}><span class="ck">${k+1}</span><span>${c}</span></button>`).join('')}</div>`;
       if(s.kind==='cmp')h+=`<div class="cmp-row">${['<','=','>'].map(c=>`<button type="button" class="cmp-btn${this.tried.has(c)?' no':''}" data-act="choose" data-v="${c}"${this.tried.has(c)||this.lock?' disabled':''} aria-label="${{'<':'less than','=':'equal to','>':'greater than'}[c]}">${esc(c)}</button>`).join('')}</div>`;
       if(s.kind==='pick')h+=`<div class="picks">${s.options.map(o=>`<button type="button" class="pk${this.picks.has(o)?' on':''}" data-act="pick" data-v="${o}">${o}</button>`).join('')}</div><button type="button" class="btn btn-mint check-btn" data-act="check">Check my picks</button>`;
@@ -241,7 +247,7 @@ class StepQ{
 const Q=spec=>new StepQ(spec);
 
 /* ===================== mission runner ===================== */
-function show(id){['home','mission','done'].forEach(s=>$('#'+s).hidden=s!==id);window.scrollTo(0,0)}
+function show(id){['home','mission','done'].forEach(s=>$('#'+s).hidden=s!==id);window.scrollTo(0,0);onScreen(id)}
 function starStr(n){return '★'.repeat(n)+`<span class="off">${'★'.repeat(3-n)}</span>`}
 function renderFuel(){$('#fuel').innerHTML=Array.from({length:mission.total},(_,i)=>`<i class="${i<mission.idx?'on':''}"></i>`).join('')}
 const levelName=(def,l)=>def.levelNames?def.levelNames[l]:LEVEL_NAMES[l];
@@ -357,7 +363,7 @@ $('#hint').onclick=()=>{
 };
 $('#howto').onclick=()=>{const m=$('#manual');m.hidden=!m.hidden;$('#howto').textContent=m.hidden?'How to':'Hide how-to'};
 $('#again').onclick=()=>startMission(mission.id,mission.level);
-$('#uplevel').onclick=()=>startMission(mission.id,Math.min(2,mission.level+1));
+$('#uplevel').onclick=()=>startMission(mission.id,Math.min(mission.def.levels.length-1,mission.level+1));
 ['#sound-home','#sound-mission'].forEach(s=>$(s).onclick=()=>{progress.sound=!progress.sound;save();syncSoundBtns();sound('pop')});
 document.addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea'))return;

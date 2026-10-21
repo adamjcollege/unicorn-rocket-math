@@ -165,51 +165,68 @@ class SubProblem{
     return h;
   }
 }
-class AddProblem{
-  constructor([a,b],level){
-    this.a=a;this.b=b;this.level=level;this.ans=a+b;this.n=String(this.ans).length;
-    this.last=Math.max(String(a).length,String(b).length)-1;
-    this.top=[];this.bot=[];for(let p=0;p<this.n;p++){this.top.push(p<String(a).length?digitAt(a,p):null);this.bot.push(p<String(b).length?digitAt(b,p):null)}
+// Column addition for two or more numbers: one place at a time, right to left, with carries.
+// Used on its own (Carry Cargo, Homework Helper) and inside other problems via o.onDone.
+class ColAdd{
+  constructor(nums,level=1,o={}){
+    this.nums=nums;this.level=level;this.o=o;this.ans=nums.reduce((s,x)=>s+x,0);this.n=String(this.ans).length;
+    this.last=Math.max(...nums.map(x=>String(x).length))-1;
+    this.rows=nums.map(x=>{const L=String(x).length;return Array.from({length:this.n},(_,p)=>p<L?digitAt(x,p):null)});
     this.carry=Array(this.n+1).fill(0);this.res=Array(this.n).fill(null);this.c=0;this.hintLvl=0;this.done=false;
   }
-  sum(p){return (this.top[p]??0)+(this.bot[p]??0)+this.carry[p]}
-  parts(p){return [this.carry[p]?1:null,this.top[p],this.bot[p]].filter(x=>x!==null)}
-  start(){this.prompt(`Let's add <b>${fmt(this.a)} + ${fmt(this.b)}</b>. Start in the <b>ones</b> place. `)}
+  get a(){return this.nums[0]}
+  get b(){return this.nums[1]}
+  sum(p){return this.rows.reduce((s,r)=>s+(r[p]??0),0)+this.carry[p]}
+  parts(p){
+    const ds=this.rows.map(r=>r[p]).filter(x=>x!==null),nz=ds.length>2?ds.filter(x=>x):ds;
+    return [...(this.carry[p]?[this.carry[p]]:[]),...(nz.length?nz:ds)];
+  }
+  eq(){return this.nums.map(fmt).join(' + ')}
+  start(pre){this.prompt(pre??`Let's add <b>${this.eq()}</b>. Start in the <b>ones</b> place. `)}
   prompt(pre=''){
     const p=this.c;this.hintLvl=0;
-    const carryNote=this.carry[p]?' (don\'t forget the carried 1!)':'';
+    const carryNote=this.carry[p]?` (don't forget the carried ${this.carry[p]}!)`:'';
     app.say(pre+`<b>${cap(PLACE[p])}:</b> ${this.parts(p).join(' + ')} = ?${carryNote}`,PRAISE.some(x=>pre.includes(x))?'cheer':'happy');
     app.setInput({len:String(this.sum(p)).length,onSubmit:v=>this.answer(v)});
   }
   answer(v){
     const p=this.c,s=this.sum(p);
     if(v===s){
-      let msg='';
-      if(s>=10&&p<this.last){this.res[p]=s%10;this.carry[p+1]=1;msg=`${s} ${PLACE[p]} = 1 ${UNIT[p+1]} and ${s%10} ${PLACE[p]}. Write the <b>${s%10}</b> and carry the <b>1</b> to the ${PLACE[p+1]}. `}
-      else if(s>=10){this.res[p]=s%10;this.res[p+1]=1}
+      let msg='';const up=Math.floor(s/10);
+      if(s>=10&&p<this.last){this.res[p]=s%10;this.carry[p+1]=up;msg=`${s} ${PLACE[p]} = ${up} ${up>1?PLACE[p+1]:UNIT[p+1]} and ${s%10} ${PLACE[p]}. Write the <b>${s%10}</b> and carry the <b>${up}</b> to the ${PLACE[p+1]}. `}
+      else if(s>=10){this.res[p]=s%10;this.res[p+1]=up}
       else this.res[p]=s;
       this.c++;
-      if(this.c>this.last){this.done=true;app.solved(`<b>${fmt(this.a)} + ${fmt(this.b)} = ${fmt(this.ans)}</b>.`);return true}
+      if(this.c>this.last){this.finish();return true}
       this.prompt(app.praise()+msg+`Now the <b>${PLACE[this.c]}</b>. `);return true;
     }
-    if(this.carry[p]&&v===s-1)app.oops(`Don't forget the carried 1 on top of the ${PLACE[p]}!`);
+    const cr=this.carry[p];
+    if(cr&&v===s-cr)app.oops(`Don't forget the carried ${cr} on top of the ${PLACE[p]}!`);
     else if(s>=10&&v===s%10)app.oops(`${v} is only part of it. Type the whole column total (it's more than 9).`);
     else if(Math.abs(v-s)===1)app.oops(`Off by one! Add the column again: ${this.parts(p).join(' + ')}.`);
     else app.oops(`Add the column again: ${this.parts(p).join(' + ')}.`);
     return false;
   }
+  finish(){
+    this.done=true;
+    if(this.o.onDone)this.o.onDone();
+    else app.solved(`<b>${this.eq()} = ${fmt(this.ans)}</b>.`);
+  }
   hint(){
     const p=this.c,s=this.sum(p),l=this.hintLvl++,ps=this.parts(p);
-    if(l===0)return `Add two numbers first: ${ps[0]} + ${ps[1]} = ${ps[0]+ps[1]}${ps.length>2?`, then add ${ps[2]}`:''}.`;
-    if(l===1&&s>=10)return `The column adds up to more than 9. That means you'll carry a 1 to the next place.`;
+    if(ps.length<2)return `There's only ${ps[0]} in this column, so the answer is <b>${s}</b>.`;
+    if(l===0)return `Add two numbers first: ${ps[0]} + ${ps[1]} = ${ps[0]+ps[1]}${ps.length>2?`, then add ${ps.slice(2).join(', then ')}`:''}.`;
+    if(l===1&&s>=10)return `The column adds up to more than 9. That means you'll carry to the next place.`;
     return `${ps.join(' + ')} = <b>${s}</b>.`;
   }
   html(){
-    const n=this.n,I=app.input;let h=`<div class="sub-grid" style="--n:${n}">`;
+    const n=this.n,I=app.input,R=this.rows.length;let h=`<div class="sub-grid" style="--n:${n}">`;
     h+=`<div></div>`;for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-label pl-${p}">${PLACE_SHORT[p]}</div>`;
-    h+=`<div></div>`;for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-marks pl-${p}">${this.carry[p]?'<span>1</span>':''}</div>`;
-    h+=`<div class="sg sg-num sg-sign"></div>`;for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-num pl-${p}">${this.top[p]??''}</div>`;
-    h+=`<div class="sg sg-num sg-sign">+</div>`;for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-num pl-${p}">${this.bot[p]??''}</div>`;
+    h+=`<div></div>`;for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-marks pl-${p}">${this.carry[p]?`<span>${this.carry[p]}</span>`:''}</div>`;
+    this.rows.forEach((row,k)=>{
+      h+=`<div class="sg sg-num sg-sign">${k===R-1?'+':''}</div>`;
+      for(let p=n-1;p>=0;p--)h+=`<div class="sg sg-num pl-${p}${p===this.c&&!this.done?' cur':''}">${row[p]??''}</div>`;
+    });
     h+=`<div class="sg-rule"></div><div></div>`;
     for(let p=n-1;p>=0;p--){
       let inner;
@@ -218,11 +235,19 @@ class AddProblem{
       else inner=p<=this.last?`<div class="abox"></div>`:'';
       h+=`<div class="sg sg-ans pl-${p}">${inner}</div>`;
     }
-    h+=`</div>`;
-    if(this.done)h+=`<p class="check-line">Check with subtraction: ${fmt(this.ans)} − ${fmt(this.b)} = ${fmt(this.a)} ✓</p>`;
+    return h+`</div>`;
+  }
+}
+class AddProblem extends ColAdd{
+  constructor(pair,level){super(pair,level)}
+  html(){
+    let h=super.html();
+    if(this.done&&this.nums.length===2)h+=`<p class="check-line">Check with subtraction: ${fmt(this.ans)} − ${fmt(this.b)} = ${fmt(this.a)} ✓</p>`;
     return h;
   }
 }
+// Should this sum be worked in columns? Yes once it is more than a single-digit fact.
+const colWorthy=nums=>nums.reduce((s,x)=>s+x,0)>=10&&(nums.some(x=>x>=10)||nums.length>2);
 /* ---- multiplication: area model ---- */
 function genMul(l){
   for(;;){
@@ -255,12 +280,19 @@ class MulProblem{
     if(v===part.v){
       this.filled[w][k]=true;this.eIdx++;
       if(this.eIdx<this.queue.length){this.askExpand(app.praise());return true}
-      this.stage='boxes';this.askBox(app.praise()+`Now fill each rocket panel by multiplying. `);return true;
+      this.stage='boxes';this.bIdx=this.nextBox();this.askBox(app.praise()+`Now fill each rocket panel by multiplying. We'll start with the smallest one. <small>(You can tap any panel to do it first.)</small> `);return true;
     }
     if(v===part.d)app.oops(`That's the digit! But it's in the ${PLACE[part.z]} place, so it's worth ${part.d} ${PLACE[part.z]}. Add zeros to show that.`);
     else if(v%part.d===0&&/^10*$/.test(String(v/part.d)))app.oops(`${fmt(v)} is ${part.d} ${PLACE[String(v/part.d).length-1]}. This ${part.d} is in the <b>${PLACE[part.z]}</b> place.`);
     else app.oops(`${part.d} ${PLACE[part.z]} = ${part.d} × ${fmt(10**part.z)}. What number is that?`);
     return false;
+  }
+  // smallest (ones) panel first: the bottom-right one, then leftward and upward
+  nextBox(){for(let k=this.boxes.length-1;k>=0;k--)if(this.boxes[k].val===null)return k;return -1}
+  act(name,v){
+    if(name!=='box'||this.stage!=='boxes'||this.done)return false;
+    const k=+v;if(!this.boxes[k]||this.boxes[k].val!==null||k===this.bIdx)return false;
+    this.bIdx=k;sound('pop');this.askBox();
   }
   askBox(pre=''){
     const bx=this.boxes[this.bIdx];this.hintLvl=0;
@@ -272,8 +304,8 @@ class MulProblem{
   answerBox(v){
     const bx=this.boxes[this.bIdx],fact=bx.a.d*bx.b.d,z=bx.a.z+bx.b.z;
     if(v===bx.a.v*bx.b.v){
-      bx.val=v;this.bIdx++;
-      if(this.bIdx<this.boxes.length){this.askBox(app.praise());return true}
+      bx.val=v;this.bIdx=this.nextBox();
+      if(this.bIdx>=0){this.askBox(app.praise());return true}
       this.stage='sum';this.askSum(app.praise());return true;
     }
     if(v===fact&&z>0)app.oops(`You found ${bx.a.d} × ${bx.b.d} = ${fact}. Great start! Now add the ${z} zero${z>1?'s':''} from ${fmt(bx.a.v)} and ${fmt(bx.b.v)}.`);
@@ -281,15 +313,13 @@ class MulProblem{
     else app.oops(`Start with the basic fact: ${bx.a.d} × ${bx.b.d}.${z?` Then add ${z} zero${z>1?'s':''}.`:''}`);
     return false;
   }
+  sumOrder(){return this.boxes.map(b=>b.val).sort((x,y)=>y-x)}
   askSum(pre=''){
     this.hintLvl=0;
-    app.say(pre+`Last step: <b>add up all the panels</b>. ${this.boxes.map(b=>fmt(b.val)).join(' + ')} = ?`,pre?'cheer':'happy');
-    app.setInput({len:String(this.ans).length,onSubmit:v=>this.answerSum(v)});
+    this.col=new ColAdd(this.sumOrder(),1,{onDone:()=>this.finishSum()});
+    this.col.start(pre+`Last step: <b>add up all the panels</b>. They're lined up by place value below. Start with the <b>ones</b>. `);
   }
-  answerSum(v){
-    if(v===this.ans){this.done=true;this.stage='done';app.solved(`<b>${fmt(this.A)} × ${this.B} = ${fmt(this.ans)}</b>. You built it from ${this.boxes.length} panels!`);return true}
-    app.oops(`Line up the places and add carefully. Try adding two numbers at a time.`);return false;
-  }
+  finishSum(){this.done=true;this.stage='done';app.solved(`<b>${fmt(this.A)} × ${fmt(this.B)} = ${fmt(this.ans)}</b>. You built it from ${this.boxes.length} panels!`)}
   hint(){
     const l=this.hintLvl++;
     if(this.stage==='expand'){
@@ -303,10 +333,7 @@ class MulProblem{
       if(l===1&&z)return `${bx.a.d} × ${bx.b.d} = ${fact}. Now add ${z} zero${z>1?'s':''}.`;
       return `${fmt(bx.a.v)} × ${fmt(bx.b.v)} = <b>${fmt(bx.a.v*bx.b.v)}</b>.`;
     }
-    const vals=this.boxes.map(b=>b.val);let run=vals[0];const lines=[];
-    for(let i=1;i<vals.length;i++){lines.push(`${fmt(run)} + ${fmt(vals[i])} = ${fmt(run+vals[i])}`);run+=vals[i]}
-    const show=lines.slice(0,Math.min(l+1,lines.length));
-    return `Add two at a time:<br>`+show.join('<br>')+(show.length<lines.length?'<br>Keep going!':'');
+    this.hintLvl--;return this.col.hint();
   }
   expandHtml(w){
     const N=w==='a'?this.A:this.B,parts=w==='a'?this.ap:this.bp,ds=digitsOf(N),I=app.input;
@@ -331,17 +358,13 @@ class MulProblem{
           const k=j*this.ap.length+i,bx=this.boxes[k];let cls='box',val='?';
           if(bx.val!==null){cls+=' done';val=fmt(bx.val)}
           else if(this.stage==='boxes'&&k===this.bIdx){cls+=' active'+(shakeNext?' shake':'');val=`${I.buffer}<i class="caret"></i>`}
+          else if(this.stage==='boxes'){h+=`<button type="button" class="box tap" data-act="box" data-v="${k}" aria-label="Do ${fmt(a.v)} × ${fmt(b.v)} next"><small>${fmt(a.v)} × ${fmt(b.v)}</small><b>?</b></button>`;return}
           h+=`<div class="${cls}"><small>${fmt(a.v)} × ${fmt(b.v)}</small><b>${val}</b></div>`;
         });
       });
       h+=`</div>`;
     }
-    if(this.stage==='sum'||this.stage==='done'){
-      h+=`<div class="stack">`;
-      this.boxes.forEach((b,i)=>h+=`<div class="sline"><span class="op">${i?'+':''}</span><span>${fmt(b.val)}</span></div>`);
-      const tcls=this.done?'total done':'total active'+(shakeNext?' shake':'');
-      h+=`<div class="srule"></div><div class="sline"><span class="op"></span><span class="${tcls}">${this.done?fmt(this.ans):I.buffer+'<i class="caret"></i>'}</span></div></div>`;
-    }
+    if(this.col)h+=`<p class="legend">Add the panels</p><div class="col-wrap">${this.col.html()}</div>`;
     return h+`</div>`;
   }
 }
@@ -494,8 +517,8 @@ function genForms(l){
   }
   const th=rand(1,4),hu=rand(10,18),te=rand(1,9),on=rand(1,9);const v=th*1000+hu*100+te*10+on;
   if(Math.random()<.5)return {key:'g'+v,text:`A crate holds 1,000 bricks, a case holds 100, and a box holds 10. Leo has <b>${th} ${plural(th,'crate')}, ${hu} cases, ${te} ${plural(te,'box','boxes')} and ${on} loose ${plural(on,'brick')}</b>. How many bricks is that?`,
-    steps:[numStep(`How many bricks are in the ${hu} cases?`,hu*100,{hints:[`${hu} × 100`]}),numStep('How many bricks in all?',v,{hints:[`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on}`]})],summary:`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on} = <b>${fmt(v)}</b> bricks.`};
-  return {key:'u'+v,text:`What number is <b>${th} thousands, ${hu} hundreds, ${te} tens and ${on} ones</b>?`,steps:[numStep(`First: ${hu} hundreds = ?`,hu*100,{hints:[`${hu} × 100`]}),numStep('Now the whole number:',v,{hints:[`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on}`]})],summary:`That's <b>${fmt(v)}</b>. ${hu} hundreds is the same as 1 thousand and ${hu-10} hundreds!`};
+    steps:[numStep(`How many bricks are in the ${hu} cases?`,hu*100,{hints:[`${hu} × 100`]}),numStep('How many bricks in all?',v,{add:[th*1000,hu*100,te*10,on],hints:[`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on}`]})],summary:`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on} = <b>${fmt(v)}</b> bricks.`};
+  return {key:'u'+v,text:`What number is <b>${th} thousands, ${hu} hundreds, ${te} tens and ${on} ones</b>?`,steps:[numStep(`First: ${hu} hundreds = ?`,hu*100,{hints:[`${hu} × 100`]}),numStep('Now the whole number:',v,{add:[th*1000,hu*100,te*10,on],hints:[`${fmt(th*1000)} + ${fmt(hu*100)} + ${te*10} + ${on}`]})],summary:`That's <b>${fmt(v)}</b>. ${hu} hundreds is the same as 1 thousand and ${hu-10} hundreds!`};
 }
 function cmpSym(a,b){return a<b?'<':a>b?'>':'='}
 function genCompare(l){
@@ -539,7 +562,7 @@ function genOA1(l){
     :`${who[0]} built <b>${a} towers</b>. ${who[1]} built <b>${more} more</b> towers than ${who[0]}. How many towers did ${who[1]} build?`;
   return {key:'d'+mult+k+a+more,text,
     steps:[mcStep({prompt:'What kind of comparison is this?',keep:true,right:mult?'Times as many → multiply':'More than → add',wrong:[[mult?'More than → add':'Times as many → multiply',mult?'Look for the words "times as many".':'Look for the words "more than".']],record:mult?'Times as many → multiply':'More than → add'}),
-      numStep(mult?`${a} × ${k} = ?`:`${a} + ${more} = ?`,mult?a*k:a+more,{unit:'towers'})],
+      numStep(mult?`${a} × ${k} = ?`:`${a} + ${more} = ?`,mult?a*k:a+more,{unit:'towers',add:mult?null:[a,more]})],
     summary:mult?`<b>${a*k}</b> towers. "Times as many" means multiply.`:`<b>${a+more}</b> towers. "More than" means add.`};
 }
 function genOA3(l){
@@ -547,11 +570,11 @@ function genOA3(l){
   if(l===0){
     const t=rand(0,2);
     if(t===0){const b=rand(3,6),n=rand(12,48),x=rand(5,30);return {key:'a'+b+n+x,text:`The robot club has <b>${b} boxes</b> with <b>${n} bricks</b> in each box, plus <b>${x} loose bricks</b>. How many bricks are there in all?`,
-      viz:`<div class="eq">t = ${b} × ${n} + ${x}</div>`,steps:[numStep('Step 1: How many bricks are in the boxes?',b*n,{record:`Boxes: ${b} × ${n} = ${b*n}`,hints:[`${b} groups of ${n}: ${b} × ${n}.`]}),numStep('Step 2: Add the loose bricks. How many in all?',b*n+x,{hints:[`${b*n} + ${x}`]})],summary:`t = <b>${b*n+x}</b> bricks.`}}
+      viz:`<div class="eq">t = ${b} × ${n} + ${x}</div>`,steps:[numStep('Step 1: How many bricks are in the boxes?',b*n,{record:`Boxes: ${b} × ${n} = ${b*n}`,hints:[`${b} groups of ${n}: ${b} × ${n}.`]}),numStep('Step 2: Add the loose bricks. How many in all?',b*n+x,{add:[b*n,x],hints:[`${b*n} + ${x}`]})],summary:`t = <b>${b*n+x}</b> bricks.`}}
     if(t===1){const b=rand(3,7),n=rand(15,40),x=rand(4,b*n-10);return {key:'b'+b+n+x,text:`Comet's rocket carries <b>${b} crates</b> of <b>${n} moon rocks</b> each. On the way home, <b>${x} rocks</b> fell out. How many rocks are left?`,
       viz:`<div class="eq">r = ${b} × ${n} − ${x}</div>`,steps:[numStep('Step 1: How many rocks were in the crates?',b*n,{record:`${b} × ${n} = ${b*n}`}),numStep('Step 2: How many are left?',b*n-x,{hints:[`${b*n} − ${x}`]})],summary:`r = <b>${b*n-x}</b> rocks.`}}
     const p=rand(6,15),k=rand(3,6),x=rand(5,20);return {key:'c'+p+k+x,text:`Space show tickets cost <b>$${p}</b> each. ${who}'s family buys <b>${k} tickets</b> and a <b>$${x} poster</b>. How much do they spend?`,
-      viz:`<div class="eq">s = ${k} × ${p} + ${x}</div>`,steps:[numStep('Step 1: How much do the tickets cost?',k*p,{unit:'dollars',record:`${k} × $${p} = $${k*p}`}),numStep('Step 2: How much in all?',k*p+x,{unit:'dollars'})],summary:`s = <b>$${k*p+x}</b>.`};
+      viz:`<div class="eq">s = ${k} × ${p} + ${x}</div>`,steps:[numStep('Step 1: How much do the tickets cost?',k*p,{unit:'dollars',record:`${k} × $${p} = $${k*p}`}),numStep('Step 2: How much in all?',k*p+x,{unit:'dollars',add:[k*p,x]})],summary:`s = <b>$${k*p+x}</b>.`};
   }
   if(l===1){
     const t=rand(0,2);
@@ -560,7 +583,7 @@ function genOA3(l){
     if(t===1){const a=rand(210,480),b=rand(150,390),c=Math.ceil((a+b+rand(80,300))/10)*10;const est=Math.round(a/100)*100+Math.round(b/100)*100;
       return {key:'e'+a+b+c,text:`A rover drove <b>${a} meters</b> on Monday and <b>${b} meters</b> on Tuesday. It needs to drive <b>${fmt(c)} meters</b> in all. How many more meters does it need to drive?`,
         viz:`<div class="eq">m = ${fmt(c)} − (${a} + ${b})</div>`,
-        steps:[mcStep({prompt:'First, estimate: about how far has it driven so far? (Round each number to the nearest hundred.)',right:`about ${est}`,wrong:[`about ${est+300}`,`about ${Math.max(100,est-300)}`,`about ${est*2}`],record:`Estimate: about ${est} meters`}),numStep('Step 1: Exactly how far so far?',a+b,{record:`${a} + ${b} = ${a+b}`}),numStep('Step 2: How many more meters?',c-a-b,{hints:[`${fmt(c)} − ${a+b}`]})],
+        steps:[mcStep({prompt:'First, estimate: about how far has it driven so far? (Round each number to the nearest hundred.)',right:`about ${est}`,wrong:[`about ${est+300}`,`about ${Math.max(100,est-300)}`,`about ${est*2}`],record:`Estimate: about ${est} meters`}),numStep('Step 1: Exactly how far so far?',a+b,{add:[a,b],record:`${a} + ${b} = ${a+b}`}),numStep('Step 2: How many more meters?',c-a-b,{hints:[`${fmt(c)} − ${a+b}`]})],
         summary:`m = <b>${c-a-b} meters</b>. Does it make sense? ${a+b} is close to our estimate of ${est}. ✓`}}
     const k=rand(4,8),bags=rand(9,15),g=rand(2,6),N=k*bags;return {key:'f'+N+k+g,text:`Bolt has <b>${N} bolts</b>. He puts them in bags of <b>${k}</b>. Then he gives away <b>${g} bags</b>. How many bags does he have left?`,
       viz:`<div class="eq">b = ${N} ÷ ${k} − ${g}</div>`,steps:[numStep('Step 1: How many bags does he fill?',bags,{record:`${N} ÷ ${k} = ${bags}`}),numStep('Step 2: How many bags are left?',bags-g)],summary:`b = <b>${bags-g}</b> bags.`};
@@ -609,7 +632,7 @@ function genPattern(l){
   if(l===0){const s=rand(1,12),a=rand(2,9);const terms=[s,s+a,s+2*a,s+3*a];
     return {key:'a'+s+a,text:`Bolt's pattern starts at <b>${s}</b>. The rule is <b>add ${a}</b>. Fill in the next numbers.`,
       viz:q=>`<table class="tbl"><tr><th>Step</th>${terms.map((_,i)=>`<td>${i+1}</td>`).join('')}</tr><tr><th>Number</th>${terms.map((t,i)=>`<td>${i===0||i<=q.i||q.done?t:i===q.i+1?'{{slot}}':'?'}</td>`).join('')}</tr></table>`,
-      steps:[1,2,3].map(i=>numStep(`Step ${i+1}: ${terms[i-1]} + ${a} = ?`,terms[i])),summary:`${terms.join(', ')}... Each number is ${a} more than the one before.`};}
+      steps:[1,2,3].map(i=>numStep(`Step ${i+1}: ${terms[i-1]} + ${a} = ?`,terms[i],{add:[terms[i-1],a]})),summary:`${terms.join(', ')}... Each number is ${a} more than the one before.`};}
   if(l===1){
     const t=rand(0,2);
     if(t===0){const s=rand(1,9)*2+1;const terms=[s,s+2,s+4,s+6];return {key:'o'+s,text:`Start at <b>${s}</b>. The rule is <b>add 2</b>.`,viz:`<div class="eq">${terms.join(', ')}, ...</div>`,
@@ -627,7 +650,7 @@ function genPattern(l){
   const n=rand(5,12);
   return {key:'b'+n,text:`At a space party, one person sits at each side of a triangle table. When triangle tables are pushed together in a row, they share sides. 1 table seats 3, 2 tables seat 4, 3 tables seat 5. How many people can sit at <b>${n} tables</b>?`,
     viz:`<table class="tbl"><tr><th>Tables</th><td>1</td><td>2</td><td>3</td><td>4</td><td>...</td><td>${n}</td></tr><tr><th>People</th><td>3</td><td>4</td><td>5</td><td>6</td><td>...</td><td>?</td></tr></table>`,
-    steps:[mcStep({prompt:'What is the rule?',right:'People = tables + 2',wrong:['People = tables × 3','People = tables + 1','People = tables × 2']}),numStep(`${n} tables seat ? people`,n+2)],summary:`${n} + 2 = <b>${n+2}</b> people.`};
+    steps:[mcStep({prompt:'What is the rule?',right:'People = tables + 2',wrong:['People = tables × 3','People = tables + 1','People = tables × 2']}),numStep(`${n} tables seat ? people`,n+2,{add:[n,2]})],summary:`${n} + 2 = <b>${n+2}</b> people.`};
 }
 
 /* ===================== fraction generators ===================== */
@@ -671,7 +694,7 @@ function genNF3(l){
         steps:[mcStep({prompt:'Pick the one that adds up to the same amount.',right:`${frac(p1,d)} + ${frac(p2,d)} + ${frac(p3,d)}`,wrong:[[`${frac(p1,d)} + ${frac(n-p1,d+2)}`,'The pieces must all be the same size.'],[`${frac(n,d)} + ${frac(1,d)}`,'That adds up to more.'],[`${frac(1,d)} + ${frac(1,d)}`,'That only makes 2/'+d+'.']]})],summary:`${p1} + ${p2} + ${p3} = ${n}, so it's ${n}/${d}. Fractions can be broken into smaller same-size parts.`}}
     const d=pick([3,4,5,6,8]),w=rand(1,3),n=rand(1,d-1),imp=w*d+n;
     return {key:'i'+w+n+d,text:`Write ${w} ${frac(n,d)} as a fraction.`,viz:q=>`<div class="eq">${w} ${frac(n,d)} = ${frac(q.done?imp:'{{slot}}',d)}</div>`+fracBar(imp,d,{w:240,h:30}),
-      steps:[numStep(`${w} wholes = ?/${d}`,w*d,{record:`${w} wholes = ${w*d}/${d}`,hints:[`Each whole has ${d} pieces. ${w} × ${d}.`]}),numStep(`Add the ${n}/${d}: total ${d}ths?`,imp)],summary:`${w} ${n}/${d} = <b>${imp}/${d}</b>.`};
+      steps:[numStep(`${w} wholes = ?/${d}`,w*d,{record:`${w} wholes = ${w*d}/${d}`,hints:[`Each whole has ${d} pieces. ${w} × ${d}.`]}),numStep(`Add the ${n}/${d}: total ${d}ths?`,imp,{add:[w*d,n]})],summary:`${w} ${n}/${d} = <b>${imp}/${d}</b>.`};
   }
   const d=pick([3,4,6,8]);const w1=rand(1,3),n1=rand(1,d-1),w2=rand(1,2),n2=rand(1,d-1);const add=Math.random()<.6;
   let A=w1*d+n1,B=w2*d+n2;if(!add&&A<B){[A,B]=[B,A]}
@@ -680,7 +703,7 @@ function genNF3(l){
   const story=add?`${pick(NAMES)} ran <b>${W1} ${N1}/${d} miles</b>. Kim ran <b>${W2} ${N2}/${d} miles</b> more than that. How far did Kim run?`:`A robot had <b>${W1} ${N1}/${d} meters</b> of wire and used <b>${W2} ${N2}/${d} meters</b>. How much wire is left?`;
   return {key:'x'+A+B+d+add,text:story,viz:`<div class="eq">${W1} ${frac(N1,d)} ${add?'+':'−'} ${W2} ${frac(N2,d)} = ?</div>`,
     steps:[numStep(`Change ${W1} ${N1}/${d} into ${d}ths: ?/${d}`,A,{record:`${W1} ${N1}/${d} = ${A}/${d}`,hints:[`${W1} × ${d} + ${N1}`]}),numStep(`Change ${W2} ${N2}/${d} into ${d}ths: ?/${d}`,B,{record:`${W2} ${N2}/${d} = ${B}/${d}`,hints:[`${W2} × ${d} + ${N2}`]}),
-      numStep(`${A}/${d} ${add?'+':'−'} ${B}/${d} = ?/${d}`,R,{record:`${A}/${d} ${add?'+':'−'} ${B}/${d} = ${R}/${d}`}),numStep(`${R}/${d} = how many wholes?`,RW,{hints:[`How many ${d}s fit in ${R}?`]}),...(RN?[numStep(`and how many ${d}ths left over?`,RN)]:[])],
+      numStep(`${A}/${d} ${add?'+':'−'} ${B}/${d} = ?/${d}`,R,{add:add?[A,B]:null,record:`${A}/${d} ${add?'+':'−'} ${B}/${d} = ${R}/${d}`}),numStep(`${R}/${d} = how many wholes?`,RW,{hints:[`How many ${d}s fit in ${R}?`]}),...(RN?[numStep(`and how many ${d}ths left over?`,RN)]:[])],
     summary:`The answer is <b>${RW}${RN?` ${RN}/${d}`:''}</b> ${add?'miles':'meters'}.`};
 }
 function genNF4(l){
@@ -703,8 +726,8 @@ function genDec(l){
   }
   if(l===1){
     if(Math.random()<.5){const t=rand(1,9);return {key:'e'+t,text:`${frac(t,10)} = ${frac('?',100)}`,viz:q=>`<div class="eq">${frac(t,10)} = ${frac(q.done?t*10:'{{slot}}',100)}</div>${decGrid(t*10,10,SKY)}`,steps:[numStep(`${t}/10 = ?/100`,t*10,{hints:['Each tenth (column) has 10 hundredths.']}),mcStep({prompt:'As a decimal, that is...',right:`0.${t}0 (or 0.${t})`,wrong:[`0.0${t}`,`${t}.10`,`0.${t}1`]})],summary:`${t}/10 = ${t*10}/100 = 0.${t}0 = <b>0.${t}</b>.`}}
-    const t=rand(1,6),h=rand(11,39);const tot=t*10+h;return {key:'a'+t+h,text:`Add: ${frac(t,10)} + ${frac(h,100)}`,viz:q=>`<div class="eq">${frac(t,10)} + ${frac(h,100)} = ${frac(q.i>=1||q.done?tot:'{{slot}}',100)}</div>`,
-      steps:[numStep(`First, ${t}/10 = ?/100`,t*10,{record:`${t}/10 = ${t*10}/100`}),numStep(`${t*10}/100 + ${h}/100 = ?/100`,tot),mcStep({prompt:'Write the answer as a decimal.',right:decStr(tot),wrong:[(tot/10).toFixed(1),`0.${t}${h}`,'0.0'+tot].filter(x=>x!==decStr(tot)).slice(0,3),short:true})],summary:`${t}/10 + ${h}/100 = ${tot}/100 = <b>${decStr(tot)}</b>.`};
+    const t=rand(1,6),h=rand(11,39);const tot=t*10+h;return {key:'a'+t+h,text:`Add: ${frac(t,10)} + ${frac(h,100)}`,viz:q=>`<div class="eq">${frac(t,10)} + ${frac(h,100)} = ${frac(q.i>=2||q.done?tot:q.i===1?'{{slot}}':'?',100)}</div>`,
+      steps:[numStep(`First, ${t}/10 = ?/100`,t*10,{record:`${t}/10 = ${t*10}/100`}),numStep(`${t*10}/100 + ${h}/100 = ?/100`,tot,{add:[t*10,h]}),mcStep({prompt:'Write the answer as a decimal.',right:decStr(tot),wrong:[(tot/10).toFixed(1),`0.${t}${h}`,'0.0'+tot].filter(x=>x!==decStr(tot)).slice(0,3),short:true})],summary:`${t}/10 + ${h}/100 = ${tot}/100 = <b>${decStr(tot)}</b>.`};
   }
   const traps=[[40,37],[60,59],[7,70],[30,30],[67,76],[5,50],[89,98],[20,19],[45,54],[80,8]];const [x,y]=pick(traps);const sx=x%10===0&&Math.random()<.6?(x/100).toFixed(1):decStr(x),sy=y%10===0&&Math.random()<.6?(y/100).toFixed(1):decStr(y);
   const sym=cmpSym(x,y);
@@ -730,7 +753,7 @@ function genMetric(l){
   if(t===0){const m=rand(250,400),k=rand(3,6);return {key:'w'+m+k,text:`A can holds <b>${m} mL</b> of juice. A jug holds <b>${k} times as much</b>. How much does the jug hold?`,steps:[numStep(`${m} × ${k} = ?`,m*k,{unit:'mL'})],summary:`The jug holds <b>${fmt(m*k)} mL</b>.`}}
   if(t===1){const k=rand(3,6),each=rand(120,900);const tot=k*each;return {key:'x'+tot+k,text:`There are <b>${fmt(tot)} liters</b> of rocket fuel. It is shared equally among <b>${k} tanks</b>. How much goes in each tank?`,steps:[numStep(`${fmt(tot)} ÷ ${k} = ?`,each,{unit:'liters'})],summary:`Each tank gets <b>${fmt(each)} liters</b>.`}}
   if(t===2){const a=rand(1200,4800),b=rand(300,1100);return {key:'y'+a+b,text:`A space crate has a mass of <b>${fmt(a)} grams</b>. Bolt takes out a tool that has a mass of <b>${fmt(b)} grams</b>. What is the mass of the crate now?`,steps:[numStep(`${fmt(a)} − ${fmt(b)} = ?`,a-b,{unit:'grams'})],summary:`<b>${fmt(a-b)} grams</b>.`}}
-  const a=rand(35,95),b=rand(25,80);return {key:'z'+a+b,text:`Comet's ribbon is <b>${a} cm</b> long. Starla's ribbon is <b>${b} cm</b> long. How long are they together?`,steps:[numStep(`${a} + ${b} = ?`,a+b,{unit:'cm'})],summary:`<b>${a+b} cm</b> together.`};
+  const a=rand(35,95),b=rand(25,80);return {key:'z'+a+b,text:`Comet's ribbon is <b>${a} cm</b> long. Starla's ribbon is <b>${b} cm</b> long. How long are they together?`,steps:[numStep(`${a} + ${b} = ?`,a+b,{unit:'cm',add:[a,b]})],summary:`<b>${a+b} cm</b> together.`};
 }
 const t12=m=>{let h=Math.floor(m/60)%12;if(h===0)h=12;return `${h}:${String(m%60).padStart(2,'0')}`};
 function clockSvg(min){
@@ -770,7 +793,7 @@ function genTime(l){
       steps:[mcStep({prompt:'Pick the start time. (Count backward!)',right:t12(st),wrong:[t12(st+60),t12(end+dur),t12(st-60)].filter(x=>x!==t12(st)).slice(0,3),short:true,hints:[`Go back ${end%60} minutes to get to ${t12(end-end%60)}.`,`Then go back the other ${dur-end%60} minutes.`]})],summary:`${t12(end)} − ${dur} minutes = <b>${t12(st)}</b>.`};}
   const a=rand(6,10)*5,br=pick([10,15]),b=rand(5,9)*5,end=start+a+br+b;
   return {key:'p'+start+a+b,text:`The space show starts at <b>${t12(start)}</b>. Part 1 lasts <b>${a} min</b>, then a <b>${br} min</b> break, then Part 2 lasts <b>${b} min</b>. When does it end?`,
-    steps:[numStep('How many minutes in all?',a+br+b,{unit:'minutes',record:`${a} + ${br} + ${b} = ${a+br+b} min`}),mcStep({prompt:'What time does it end?',right:t12(end),wrong:[t12(end-60),t12(end+15),t12(start+a+b)].filter(x=>x!==t12(end)).slice(0,3),short:true})],summary:`It ends at <b>${t12(end)}</b>.`};
+    steps:[numStep('How many minutes in all?',a+br+b,{unit:'minutes',add:[a,br,b],record:`${a} + ${br} + ${b} = ${a+br+b} min`}),mcStep({prompt:'What time does it end?',right:t12(end),wrong:[t12(end-60),t12(end+15),t12(start+a+b)].filter(x=>x!==t12(end)).slice(0,3),short:true})],summary:`It ends at <b>${t12(end)}</b>.`};
 }
 function rectGrid(w,h,o={}){
   const s=Math.min(34,Math.floor(320/Math.max(w,h)));let g='';
@@ -789,14 +812,14 @@ function lShape(w1,h1,w2,h2){ // A on top-left (w1×h1), B below (w2×h2), align
 }
 function genArea(l){
   if(l===0){const w=rand(3,9),h=rand(2,7);return {key:'r'+w+h,text:`Bolt is building a rectangle floor with square bricks. It is <b>${w} units</b> long and <b>${h} units</b> wide.`,viz:rectGrid(w,h),
-    steps:[numStep('What is the area?',w*h,{unit:'square units',record:`Area = ${w} × ${h} = ${w*h} square units`,hints:['Area = length × width (count the squares inside).']}),numStep('What is the perimeter?',2*(w+h),{unit:'units',hints:['Perimeter is the distance all the way around.',`${w} + ${h} + ${w} + ${h}`],wrong:v=>v===w*h?'That is the area. Perimeter goes around the outside edge.':`Add all four sides: ${w} + ${h} + ${w} + ${h}.`})],summary:`Area <b>${w*h} square units</b>, perimeter <b>${2*(w+h)} units</b>.`};}
+    steps:[numStep('What is the area?',w*h,{unit:'square units',record:`Area = ${w} × ${h} = ${w*h} square units`,hints:['Area = length × width (count the squares inside).']}),numStep('What is the perimeter?',2*(w+h),{unit:'units',add:[w,h,w,h],hints:['Perimeter is the distance all the way around.',`${w} + ${h} + ${w} + ${h}`],wrong:v=>v===w*h?'That is the area. Perimeter goes around the outside edge.':`Add all four sides: ${w} + ${h} + ${w} + ${h}.`})],summary:`Area <b>${w*h} square units</b>, perimeter <b>${2*(w+h)} units</b>.`};}
   if(l===1){const w=rand(4,12),h=rand(3,9);
     if(Math.random()<.5)return {key:'a'+w+h,text:`A rectangle garden on Mars has an area of <b>${w*h} square meters</b>. One side is <b>${h} meters</b>. How long is the other side?`,viz:rectGrid(Math.min(w,12),h,{grid:false,wl:'?',hl:h,u:'m'}),steps:[numStep(`${h} × ? = ${w*h}`,w,{unit:'meters',hints:[`Area = length × width, so divide: ${w*h} ÷ ${h}.`]})],summary:`${h} × ${w} = ${w*h}, so the side is <b>${w} meters</b>.`};
     return {key:'p'+w+h,text:`A rectangle robot pen has a perimeter of <b>${2*(w+h)} meters</b>. Its length is <b>${w} meters</b>. How wide is it?`,viz:rectGrid(Math.min(w,12),h,{grid:false,wl:w,hl:'?',u:'m'}),
-      steps:[numStep(`Two lengths: ${w} + ${w} = ?`,2*w,{record:`Two lengths = ${2*w} m`}),numStep(`The two widths together: ${2*(w+h)} − ${2*w} = ?`,2*h),numStep('So one width is...',h,{unit:'meters'})],summary:`The width is <b>${h} meters</b>.`};}
+      steps:[numStep(`Two lengths: ${w} + ${w} = ?`,2*w,{add:[w,w],record:`Two lengths = ${2*w} m`}),numStep(`The two widths together: ${2*(w+h)} − ${2*w} = ?`,2*h),numStep('So one width is...',h,{unit:'meters'})],summary:`The width is <b>${h} meters</b>.`};}
   if(Math.random()<.6){const w1=rand(2,4),h1=rand(2,4),w2=rand(w1+2,8),h2=rand(2,4);
     return {key:'l'+w1+h1+w2+h2,text:`Find the area of this brick floor. Split it into two rectangles, A and B.`,viz:lShape(w1,h1,w2,h2)+`<p class="legend">A is ${w1} × ${h1}. B is ${w2} × ${h2}.</p>`,
-      steps:[numStep('Area of A?',w1*h1,{record:`A = ${w1} × ${h1} = ${w1*h1}`}),numStep('Area of B?',w2*h2,{record:`B = ${w2} × ${h2} = ${w2*h2}`}),numStep('Total area?',w1*h1+w2*h2,{unit:'square units'})],summary:`${w1*h1} + ${w2*h2} = <b>${w1*h1+w2*h2} square units</b>.`};}
+      steps:[numStep('Area of A?',w1*h1,{record:`A = ${w1} × ${h1} = ${w1*h1}`}),numStep('Area of B?',w2*h2,{record:`B = ${w2} × ${h2} = ${w2*h2}`}),numStep('Total area?',w1*h1+w2*h2,{unit:'square units',add:[w1*h1,w2*h2]})],summary:`${w1*h1} + ${w2*h2} = <b>${w1*h1+w2*h2} square units</b>.`};}
   const A=pick([12,16,18,24]);const fs=factorsOf(A).filter(x=>x*x<=A).map(x=>[x,A/x]);const best=fs[fs.length-1];
   return {key:'f'+A,text:`You want a rectangle with an area of <b>${A} square meters</b> that needs the <b>least fencing</b> (smallest perimeter). Which one?`,
     viz:`<table class="tbl"><tr><th>Length</th><th>Width</th><th>Perimeter</th></tr>${fs.map(([a,b])=>`<tr><td>${b}</td><td>${a}</td><td>?</td></tr>`).join('')}</table>`,
@@ -832,7 +855,7 @@ function genData(l){
   if(Math.random()<.5){const qs=[['What is your favorite planet?',0],['How many pets do you have?',1],['How tall are you, in centimeters?',1],['What color is your bike?',0],['Which month were you born in?',0],['How many books did you read this month?',1],['What is your favorite robot name?',0],['How many minutes does it take you to get to school?',1]];const [qq,k]=pick(qs);
     return {key:'k'+qq,text:`A survey asks: <b>"${qq}"</b>`,steps:[mcFixed('What kind of data will this question collect?',['Categorical (groups, like colors or names)','Numerical (numbers you can measure or count)'],k,{why:['','']})],summary:k?'The answers are numbers you can count or measure, so the data is <b>numerical</b>.':'The answers are groups or names, so the data is <b>categorical</b>.'};}
   const cats=['Mars','Moon','Saturn','Comet'],vals=cats.map(()=>rand(2,9)*5);const i=rand(0,3),j=(i+1+rand(0,2))%4;
-  return {key:'t'+vals.join(),text:`Kids voted for their favorite space trip.`,viz:barGraph(cats,vals,5,'Favorite Space Trip','Votes'),steps:[numStep(`How many votes did ${cats[i]} and ${cats[j]} get together?`,vals[i]+vals[j],{hints:['Each line is worth 5.',`${vals[i]} + ${vals[j]}`]}),numStep('How many votes in all?',vals.reduce((a,b)=>a+b,0))],summary:`${vals.join(' + ')} = <b>${vals.reduce((a,b)=>a+b,0)}</b> votes.`};
+  return {key:'t'+vals.join(),text:`Kids voted for their favorite space trip.`,viz:barGraph(cats,vals,5,'Favorite Space Trip','Votes'),steps:[numStep(`How many votes did ${cats[i]} and ${cats[j]} get together?`,vals[i]+vals[j],{add:[vals[i],vals[j]],hints:['Each line is worth 5.',`${vals[i]} + ${vals[j]}`]}),numStep('How many votes in all?',vals.reduce((a,b)=>a+b,0),{add:vals})],summary:`${vals.join(' + ')} = <b>${vals.reduce((a,b)=>a+b,0)}</b> votes.`};
 }
 function angleSvg(deg,o={}){
   const cx=180,cy=190,R=150;let g='';
@@ -862,7 +885,7 @@ function genAngle(l){
   const t=rand(0,3);
   if(t===0){const a=rand(3,15)*5;return {key:'r'+a,text:`The whole angle is a <b>right angle (90°)</b>. One part is <b>${a}°</b>. What is the other part, m?`,viz:splitAngle(90,a,[a+'°','m']),steps:[numStep(`${a} + m = 90, so m = ?`,90-a,{unit:'°',hints:['Angles add up: the parts make the whole.',`90 − ${a}`]})],summary:`m = <b>${90-a}°</b>.`}}
   if(t===1){const a=rand(4,30)*5;return {key:'s'+a,text:`The two angles make a <b>straight line (180°)</b>. One is <b>${a}°</b>. What is the other, m?`,viz:splitAngle(180,a,[a+'°','m']),steps:[numStep(`m = 180 − ${a}`,180-a,{unit:'°'})],summary:`m = <b>${180-a}°</b>.`}}
-  if(t===2){const a=rand(5,14)*5,b=rand(3,9)*5;return {key:'w'+a+b,text:`A sprinkler robot turns <b>${a}°</b>, pauses, then turns <b>${b}°</b> more. How many degrees did it turn in all?`,viz:splitAngle(a+b,a,[a+'°',b+'°']),steps:[numStep(`${a} + ${b} = ?`,a+b,{unit:'°'})],summary:`<b>${a+b}°</b> in all.`}}
+  if(t===2){const a=rand(5,14)*5,b=rand(3,9)*5;return {key:'w'+a+b,text:`A sprinkler robot turns <b>${a}°</b>, pauses, then turns <b>${b}°</b> more. How many degrees did it turn in all?`,viz:splitAngle(a+b,a,[a+'°',b+'°']),steps:[numStep(`${a} + ${b} = ?`,a+b,{unit:'°',add:[a,b]})],summary:`<b>${a+b}°</b> in all.`}}
   const h=rand(2,6);return {key:'c'+h,text:`When a clock's hands point at 12 and 1, the angle is 30°. What is the angle when the hands point at <b>12 and ${h}</b>?`,viz:clockSvg(h*60),steps:[numStep(`${h} jumps of 30° = ?`,30*h,{unit:'°',hints:['Each number on the clock is 30° from the next.',`${h} × 30`]})],summary:`${h} × 30° = <b>${30*h}°</b>.`};
 }
 /* ---- geometry ---- */

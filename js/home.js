@@ -153,6 +153,7 @@ function grownupsHtml(){
     <li><b>Built for a rushing reader.</b> Reading questions unlock after a short "reading fuel" bar, and every answer has a <b>Prove it!</b> step: he taps the sentence that supports it.</li>
     <li><b>Mechanics on purpose.</b> Capital Patrol, Comma Commander, Spelling Bricks, Print Lab tracing, and a Paragraph Builder that checks capitals, end marks, the word I, common misspellings, and lowercase days and months.</li>
     <li><b>No timers on answers</b> (unless you turn on timed facts). Stars unlock planets and Robot Studio items, and are never spent.</li>
+    <li><b>On a phone or tablet:</b> use Share → <b>Add to Home Screen</b> (iPhone) or ⋮ → <b>Add to Home screen</b> (Android). It then opens full-screen like an app, with no browser bars. The phone's Back button returns to Mission Control instead of leaving.</li>
     <li>Progress is saved in this browser on this device only. ${totalMissions?`So far: <b>${totalMissions}</b> ${plural(totalMissions,'mission')} finished and <b>★ ${progress.stars}</b> stars.`:''}</li>
   </ul></details>
   <details class="gu-card" open><summary><h3 style="display:inline">NC standards coverage (Grade 4)</h3></summary><p>Every grade 4 math and ELA standard from your guides, with the missions that practice it. Tap a mission name to open it. A few standards work better away from a screen, so those rows have a quick idea instead.</p>
@@ -173,7 +174,7 @@ function goHome(){leaveProblem();TTS.stop();stopFx();renderHome();show('home')}
 document.addEventListener('input',e=>{if(e.target.id==='robot-name'){robotCfg().name=e.target.value.trim().slice(0,16)||'Sprocket';save();const p=$('#robot-preview');if(p)p.innerHTML=robotSvg()}});
 document.addEventListener('click',e=>{
   const m=e.target.closest('[data-mission]');if(m&&!$('#home').hidden){startMission(m.dataset.mission,+m.dataset.level);return}
-  const t=e.target.closest('[data-tab]');if(t){homeTab=t.dataset.tab;try{history.replaceState(null,'','#'+homeTab)}catch(err){}renderHome();return}
+  const t=e.target.closest('[data-tab]');if(t){homeTab=t.dataset.tab;navTab(homeTab);renderHome();return}
   const st=e.target.closest('[data-set]');if(st){S()[st.dataset.set]=JSON.parse(st.dataset.val);save();renderHome();return}
   const sd=e.target.closest('[data-sound]');if(sd){progress.sound=sd.dataset.sound==='true';save();syncSoundBtns();renderHome();return}
   const rc=e.target.closest('[data-rcat]');if(rc){studioCat=rc.dataset.rcat;renderHome();return}
