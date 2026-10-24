@@ -551,6 +551,103 @@ details.gu-card[open] summary{margin-bottom:.6em}
 #robot-preview{background:radial-gradient(circle at 50% 45%,#fdfaff 0 55%,#e9e1fb 56% 100%);border-radius:24px;padding:12px 18px;display:grid;place-items:center}
 #robot-preview svg{width:min(240px,70vw);height:auto}
 
+
+/* ---------- rewards: ranks, streaks, plan bonus, finish list ---------- */
+.rank-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.rank-chip{display:inline-flex;align-items:center;gap:.35em;padding:.3em .8em;border-radius:999px;background:var(--space-2);box-shadow:inset 0 0 0 2px var(--gold);font-weight:700;font-size:.92rem}
+.rank-chip.streak{box-shadow:inset 0 0 0 2px var(--coral)}
+.rank-next{display:inline-flex;flex-direction:column;gap:3px;font-size:.82rem;color:var(--ink-dim);min-width:150px}
+.rank-next b{color:var(--ink)}
+.rank-next .fmeter{height:7px}
+.plan-bonus{font-size:.92rem;color:var(--ink-dim);background:var(--space);padding:.3em .8em;border-radius:999px;box-shadow:inset 0 0 0 2px var(--gold)}
+.plan-bonus b{color:var(--gold)}
+.plan-bonus.done{color:var(--mint);box-shadow:inset 0 0 0 2px var(--mint)}
+.plan-go.done{box-shadow:inset 0 0 0 2px var(--mint);opacity:.85}
+.plan-go.done .lvlname{color:var(--mint);font-weight:700}
+.done-extra{list-style:none;margin:0;padding:0;display:grid;gap:8px;width:100%;max-width:460px;text-align:left}
+.done-extra li{display:flex;gap:10px;align-items:center;background:var(--space-2);border-radius:14px;padding:.5em .8em;box-shadow:inset 0 0 0 2px var(--space-line);font-size:.98rem;animation:popin .45s ease-out both}
+.done-extra li:nth-child(2){animation-delay:.15s}.done-extra li:nth-child(3){animation-delay:.3s}.done-extra li:nth-child(4){animation-delay:.45s}.done-extra li:nth-child(n+5){animation-delay:.6s}
+.done-extra .di{font-size:1.4rem;flex:none;width:1.6em;text-align:center;color:var(--gold)}
+.done-extra b{color:var(--gold)}
+@keyframes popin{from{opacity:0;transform:translateY(8px) scale(.96)}}
+/* ---------- robot studio extras ---------- */
+.newtag{display:inline-block;font-size:.62rem;font-weight:800;letter-spacing:.06em;background:var(--pink);color:#2a0c22;border-radius:6px;padding:.05em .4em;vertical-align:middle;animation:pulse 1.4s ease-in-out infinite}
+.mini-pill.hasnew{position:relative}
+.mini-pill.hasnew::after{content:"";position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--pink);box-shadow:0 0 0 2px var(--space-2)}
+.ritem.special.locked{box-shadow:inset 0 0 0 2px #ffc84366}
+.collect{display:grid;gap:6px}
+.collect-row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.88rem;color:var(--ink-dim)}
+.collect-row b{color:var(--gold)}
+.rplay{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#robot-preview{cursor:pointer;transition:background .3s}
+#robot-preview.sc-stars{background:radial-gradient(circle at 20% 20%,#fff 0 1px,transparent 2px) 0 0/38px 38px,radial-gradient(circle at 70% 60%,#ffc843 0 1px,transparent 2px) 0 0/53px 53px,radial-gradient(circle at 50% 40%,#3a2f8f,#15123b)}
+#robot-preview.sc-moon{background:radial-gradient(ellipse at 50% 108%,#d9d6e8 0 34%,#a9a5c2 35% 38%,transparent 39%),radial-gradient(circle at 80% 20%,#fff 0 1px,transparent 2px) 0 0/44px 44px,linear-gradient(#211c58,#3d3590)}
+#robot-preview.sc-mars{background:radial-gradient(ellipse at 50% 110%,#c2461f 0 36%,transparent 37%),linear-gradient(#ffb08f,#ff8f6b 60%,#e06a3c)}
+#robot-preview.sc-ocean{background:radial-gradient(circle at 20% 70%,#ffffff55 0 5px,transparent 6px) 0 0/60px 70px,radial-gradient(ellipse at 50% 110%,#ffe08a 0 30%,transparent 31%),linear-gradient(#9fe3ff,#3a8fd6)}
+#robot-preview.sc-stadium{background:linear-gradient(transparent 70%,#3faa5c 70%),radial-gradient(circle at 15% 10%,#fff6c8 0 6px,transparent 7px),radial-gradient(circle at 85% 10%,#fff6c8 0 6px,transparent 7px),linear-gradient(#1b2a4a,#2e4a7a)}
+#robot-preview.sc-rainbowsky{background:radial-gradient(circle at 50% 120%,transparent 40%,#ff6fc0 40% 45%,#ffc843 45% 50%,#3fdcb4 50% 55%,#73c2ff 55% 60%,#b39bff 60% 65%,transparent 65%),linear-gradient(#e9f7ff,#c6e9ff)}
+#robot-preview.sc-disco{background:conic-gradient(from 0deg at 50% 0%,#ff6fc0,#ffc843,#3fdcb4,#73c2ff,#b39bff,#ff6fc0);animation:disco 6s linear infinite}
+@keyframes disco{to{filter:hue-rotate(360deg)}}
+#robot-preview.dancing .rb-body{animation:dance .5s ease-in-out 5 alternate;transform-origin:110px 240px}
+@keyframes dance{0%{transform:rotate(-6deg) translateY(0)}100%{transform:rotate(6deg) translateY(-10px)}}
+#robot-preview.dancing .rb-arms{animation:flap .25s ease-in-out 10 alternate;transform-origin:110px 132px}
+@keyframes flap{to{transform:scaleY(.8) translateY(-6px)}}
+#robot-preview.boop .rb-body{animation:boop .35s ease-out;transform-origin:110px 240px}
+@keyframes boop{40%{transform:scale(1.04,.94)}70%{transform:scale(.97,1.04)}}
+#robot-preview.playing .spk{animation:thump .27s ease-in-out infinite alternate}
+#robot-preview.playing .rb-body{animation:bob .54s ease-in-out infinite alternate;transform-origin:110px 240px}
+#robot-preview.playing .eqbar{animation-duration:.4s}
+@keyframes thump{to{transform:scale(1.35)}}
+.rb .rb-eyes{animation:blink 5s infinite;transform-origin:110px 66px}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.rb .spin{animation:spin 3s linear infinite}
+.rb .spin-r{animation:spin 2.2s linear infinite reverse}
+.rb .spin-y{animation:spiny .5s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spiny{50%{transform:scaleX(.2)}}
+.rb .pulse-s{animation:pulseo 1.2s ease-in-out infinite alternate}
+@keyframes pulseo{from{opacity:.45}to{opacity:1}}
+.rb .flame-s{animation:flick .18s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 0}
+.rb .tv-static{animation:static .15s steps(2) infinite}
+@keyframes static{50%{transform:translateY(1.8px)}}
+.rb .tv-bob{animation:tvbob 1.6s ease-in-out infinite alternate}
+@keyframes tvbob{to{transform:translateY(-3px)}}
+.rb .tv-swim{animation:swim 3s ease-in-out infinite alternate}
+@keyframes swim{from{transform:translateX(-6px)}to{transform:translateX(8px)}}
+.rb .bubbles{animation:bubbles 2s ease-in infinite}
+@keyframes bubbles{from{transform:translateY(4px);opacity:1}to{transform:translateY(-10px);opacity:0}}
+.rb .scanner{animation:scan 1.6s ease-in-out infinite alternate}
+@keyframes scan{from{transform:translateX(-20px)}to{transform:translateX(16px)}}
+.rb .twinkle{animation:pulseo .7s ease-in-out infinite alternate}
+.rb .hover-s{animation:tvbob 1.2s ease-in-out infinite alternate}
+.rb .wag{animation:wag .4s ease-in-out infinite alternate}
+@keyframes wag{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}
+.rb .eqbar{animation:eq .8s ease-in-out infinite alternate}
+@keyframes eq{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
+/* ---------- patch wall ---------- */
+.collect .fmeter,.patch .fmeter,.rank-next .fmeter{max-width:none;flex:none;width:100%;background:var(--space-3)}
+.patch-wall{margin-top:26px}
+.patch-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.patch-head span{color:var(--ink-dim);font-weight:600}
+.patches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.patch{position:relative;background:var(--space-2);border-radius:18px;padding:12px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;box-shadow:inset 0 0 0 2px var(--space-line)}
+.patch .pi{font-size:2rem;width:58px;height:58px;display:grid;place-items:center;border-radius:50%;background:var(--space);box-shadow:inset 0 0 0 3px var(--space-line);filter:grayscale(1);opacity:.55}
+.patch.got .pi{filter:none;opacity:1;background:radial-gradient(circle,#fff6,transparent 70%),var(--space-3);box-shadow:inset 0 0 0 3px var(--gold),0 0 18px -4px var(--gold)}
+.patch b{font-size:.92rem;line-height:1.2}
+.patch small{font-size:.74rem;color:var(--ink-dim);line-height:1.3}
+.patch small.pp{color:var(--mint)}
+.patch small.pc{font-weight:700}
+.patch .fmeter{width:100%;height:7px}
+.patch.got{box-shadow:inset 0 0 0 2px #ffc84388}
+.patch.fresh{box-shadow:inset 0 0 0 3px var(--pink),0 0 22px -6px var(--pink)}
+.patch .newtag{position:absolute;top:8px;right:8px}
+.shelf{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.shelf-p{font-size:1.5rem;width:46px;height:46px;display:grid;place-items:center;border-radius:50%;background:var(--space-3);box-shadow:inset 0 0 0 2px var(--gold)}
+.shelf-p.fresh{box-shadow:inset 0 0 0 3px var(--pink),0 0 14px -2px var(--pink)}
+.patch-sub{margin:12px 0 8px;font-weight:700;color:var(--gold);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase}
+.all-patches{margin-top:14px}
+.all-patches summary{cursor:pointer;font-weight:700;color:var(--sky);padding:.4em 0}
+.all-patches .patches{margin-top:8px}
 @media (max-width:900px){
   .m-body{grid-template-columns:minmax(0,1fr)}
   .m-side{position:static}
@@ -654,6 +751,7 @@ img{max-width:100%}
           <span class="pilot-name">Pilot: <span id="pilot-name">Space Cadet</span></span>
           <button class="icon-btn" id="edit-name" type="button">Change name</button>
         </div>
+        <div class="rank-row" id="rank-row"></div>
         <form id="name-form" hidden>
           <label for="name-input" class="eyebrow" style="width:100%">Pilot name</label>
           <input id="name-input" maxlength="18" autocomplete="off" placeholder="Your name">
@@ -720,8 +818,7 @@ img{max-width:100%}
       <h2 id="done-title">Flawless flight!</h2>
       <div class="done-stars" id="done-stars" aria-label="Stars earned"></div>
       <p id="done-msg"></p>
-      <p class="unlock" id="done-unlock" hidden></p>
-      <p class="unlock" id="done-part" hidden></p>
+      <ul class="done-extra" id="done-extra"></ul>
       <div class="done-actions">
         <button class="btn btn-hot" id="again" type="button">Fly again</button>
         <button class="btn btn-gold" id="uplevel" type="button">Next level →</button>
@@ -740,6 +837,7 @@ img{max-width:100%}
 <script src="js/library.js"></script>
 <script src="js/words.js"></script>
 <script src="js/writing.js"></script>
+<script src="js/rewards.js"></script>
 <script src="js/robot.js"></script>
 <script src="js/home.js"></script>
 </body>

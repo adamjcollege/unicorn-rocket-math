@@ -322,14 +322,22 @@ function finishMission(){
   $('#done-msg').textContent=stars===3?`${nm}, you finished every step like a pro. Comet and Bolt are doing happy flips!`
     :stars===2?`You finished the whole mission! Every try makes your brain stronger.`
     :`You finished the whole mission, and working through tricky ones is how brains grow. Fly it again to earn more stars!`;
+  const r=afterMission(mission,stars,before),lines=[];
   const planet=PLANETS.find(p=>before<p.need&&progress.stars>=p.need);
-  $('#done-unlock').hidden=!planet;if(planet)$('#done-unlock').textContent=`New planet unlocked: ${planet.name}! You have ★ ${progress.stars} stars.`;
-  const part=robotUnlock(before,progress.stars);
-  $('#done-part').hidden=!part;if(part)$('#done-part').textContent=`New in the Robot Studio: ${part}! Visit the Hangar to try it on your robot.`;
+  if(r.bonus)lines.push(['🗺',`Today's Flight Plan complete! <b>+${r.bonus} bonus stars</b>`]);
+  if(r.streak.changed)lines.push(['🔥',r.streak.count>1?`<b>${r.streak.count}-day streak!</b> Fly again tomorrow to keep it going.`:`Streak started! Fly again tomorrow to make it <b>2 days</b>.`]);
+  if(r.rank)lines.push(['🎖',`Promoted to <b>${r.rank}</b>!`]);
+  if(planet)lines.push(['🪐',`New planet unlocked: <b>${planet.name}</b>!`]);
+  r.patches.forEach(p=>lines.push([p.icon,`New mission patch: <b>${esc(p.name)}</b>!`]));
+  if(r.parts.length)lines.push(['🤖',`New in the Robot Studio: <b>${esc(r.parts.join(', '))}</b>! Visit the Hangar to try ${r.parts.length>1?'them':'it'} on.`]);
+  else if(r.next)lines.push(['🔜',`<b>${r.next.more}</b> more ${plural(r.next.more,'star')} to unlock <b>${esc(r.next.name)}</b> (${r.next.cat.toLowerCase()}).`]);
+  lines.push(['★',`You have <b>${progress.stars}</b> stars.`]);
+  $('#done-extra').innerHTML=lines.map(([i,t])=>`<li><span class="di">${i}</span><span>${t}</span></li>`).join('');
   $('#uplevel').hidden=mission.level>=mission.def.levels.length-1;$('#uplevel').textContent=mission.def.nextLabel||'Next level →';
   show('done');
   const L=$('#launch');L.classList.remove('go');void L.offsetWidth;L.classList.add('go');
   sound('launch');setTimeout(()=>burst(innerWidth/2,innerHeight*.35,90),500);
+  if(r.patches.length||r.parts.length)setTimeout(()=>burst(innerWidth/2,innerHeight*.6,70),1400);
 }
 
 /* ===================== rewards data ===================== */
@@ -353,7 +361,7 @@ $('#work').addEventListener('input',e=>{const p=mission&&mission.problem;if(p&&p
 $('#work').addEventListener('keydown',e=>{const p=mission&&mission.problem;if(p&&p.onKey&&e.target.matches('input,textarea'))p.onKey(e)});
 $('#next').onclick=()=>{
   if(mission.idx>=mission.total){
-    if(mission.def.repeat){progress.stars+=1;progress.played[mission.id]=(progress.played[mission.id]||0)+1;save();startMission(mission.id,mission.level)}
+    if(mission.def.repeat){const before=progress.stars;progress.stars+=1;progress.played[mission.id]=(progress.played[mission.id]||0)+1;save();const r=afterMission(mission,1,before);startMission(mission.id,mission.level);const news=[...r.patches.map(p=>p.icon+' '+p.name),...r.parts];if(news.length)navToast('New: '+news.join(', ')+'!')}
     else finishMission();
   }else nextProblem();
 };

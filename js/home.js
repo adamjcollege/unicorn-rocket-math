@@ -22,12 +22,16 @@ const PLAN_GROUPS=[
 ];
 let homeTab='math';
 const bestSum=id=>[0,1,2].reduce((s,l)=>s+(progress.best[id+l]||0),0);
-const nextLevel=id=>{for(let l=0;l<3;l++)if((progress.best[id+l]||0)<3)return l;return 2};
+const nextLevel=id=>{const top=BYID[id].levels.length-1;for(let l=0;l<=top;l++)if((progress.best[id+l]||0)<3)return l;return top};
 
 function planHtml(){
-  const day=Math.floor(Date.now()/864e5);
-  const picks=PLAN_GROUPS.map((g,gi)=>{const ids=g.ids.slice().sort((a,b)=>bestSum(a)-bestSum(b)||((g.ids.indexOf(a)+day)%g.ids.length)-((g.ids.indexOf(b)+day)%g.ids.length));return {g,m:BYID[ids[0]]}});
-  return `<div class="plan-head"><h2>Today's flight plan</h2><p>Three missions picked for you. Do them in any order!</p></div><div class="plan-row">${picks.map(({g,m})=>{const l=nextLevel(m.id);return `<button type="button" class="plan-go" data-mission="${m.id}" data-level="${l}"><span class="badge" style="--bc:${m.color}">${m.sym}</span><span style="min-width:0"><small>${g.label}</small><b>${esc(m.title)}</b><span class="lvlname">${LEVEL_NAMES[l]}</span></span></button>`}).join('')}</div>`;
+  const p=todaysPlan(),n=p.picks.filter(x=>x.done).length;
+  const note=p.claimed?`<span class="plan-bonus done">✓ All done! +${PLAN_BONUS} bonus stars earned today</span>`:`<span class="plan-bonus">Finish all 3 today for <b>+${PLAN_BONUS} bonus stars</b> (${n}/3)</span>`;
+  return `<div class="plan-head"><h2>Today's flight plan</h2>${note}</div><div class="plan-row">${p.picks.map(pk=>{const m=BYID[pk.id],l=pk.level;return `<button type="button" class="plan-go${pk.done?' done':''}" data-mission="${m.id}" data-level="${l}"><span class="badge" style="--bc:${m.color}">${pk.done?'✓':m.sym}</span><span style="min-width:0"><small>${pk.label}</small><b>${esc(m.title)}</b><span class="lvlname">${pk.done?'Done!':levelName(m,l)}</span></span></button>`}).join('')}</div>`;
+}
+function rankHtml(){
+  const r=rankOf(),s=streakNow();
+  return `<span class="rank-chip">🎖 ${r.name}</span>${s?`<span class="rank-chip streak">🔥 ${s}-day streak</span>`:''}${r.next?`<span class="rank-next">${r.next.more} ${plural(r.next.more,'star')} to <b>${r.next.name}</b><span class="fmeter"><i style="width:${r.next.pct}%"></i></span></span>`:''}`;
 }
 function missionCard(m){
   let btns;
@@ -44,9 +48,11 @@ function zoneHtml(zone){
 }
 function hangarHtml(){
   const here=PLANETS.filter(p=>progress.stars>=p.need).length-1,cfg=robotCfg();
-  return `<div class="hangar" style="margin-top:14px"><div class="robot-bay"><h3 style="font-size:1.5rem">Robot Studio</h3><div id="robot-preview">${robotSvg(cfg)}</div>
+  const play=`<div class="rplay"><button type="button" class="mini-pill" data-rplay="dance">💃 Dance</button>${cfg.chest==='boombox'?'<button type="button" class="mini-pill" data-rplay="music">🎵 Play music</button>':''}${cfg.chest==='tv'?'<button type="button" class="mini-pill" data-rplay="tv">📺 Change channel</button>':''}</div>`;
+  return `<div class="hangar" style="margin-top:14px"><div class="robot-bay"><h3 style="font-size:1.5rem">Robot Studio</h3><div id="robot-preview" class="sc-${esc(cfg.scene)}">${robotSvg(cfg)}</div>${play}
     <label class="rname">Robot name <input id="robot-name" maxlength="16" value="${esc(cfg.name)}" autocomplete="off"></label></div>
-  <div style="min-width:0">${studioHtml()}<p style="color:var(--ink-dim);margin:12px 0 0">You have <b style="color:var(--gold)">★ ${progress.stars}</b> stars. Stars are never spent. Every star you earn unlocks more choices!</p></div></div>
+  <div style="min-width:0">${studioHtml()}<p style="color:var(--ink-dim);margin:12px 0 0">You have <b style="color:var(--gold)">★ ${progress.stars}</b> stars. Stars are never spent. Every star unlocks more parts, and mission patches unlock special ones!</p></div></div>
+  <section class="patch-wall">${patchWallHtml()}</section>
   <h3 style="font-size:1.5rem;margin:26px 0 12px">Galaxy map</h3><div class="galaxy">${PLANETS.map((p,i)=>`<div class="planet${progress.stars<p.need?' locked':''}${i===here?' here':''}"><div class="orb${p.ring?' ring':''}" style="--a:${p.a};--b:${p.b}"></div><span class="planet-name">${p.name}</span><span class="planet-need">${i===here?'You are here':progress.stars>=p.need?'Visited':`★ ${p.need}`}</span></div>`).join('')}</div>`;
 }
 
@@ -152,7 +158,8 @@ function grownupsHtml(){
     <li><b>Fact Fuel-Up.</b> Single-digit facts with Streak Builder and Three Strikes modes (no clock). Missed facts come back a few problems later. Timed mode stays hidden unless you turn it on above.</li>
     <li><b>Built for a rushing reader.</b> Reading questions unlock after a short "reading fuel" bar, and every answer has a <b>Prove it!</b> step: he taps the sentence that supports it.</li>
     <li><b>Mechanics on purpose.</b> Capital Patrol, Comma Commander, Spelling Bricks, Print Lab tracing, and a Paragraph Builder that checks capitals, end marks, the word I, common misspellings, and lowercase days and months.</li>
-    <li><b>No timers on answers</b> (unless you turn on timed facts). Stars unlock planets and Robot Studio items, and are never spent.</li>
+    <li><b>No timers on answers</b> (unless you turn on timed facts). Stars unlock planets and Robot Studio parts, and are never spent.</li>
+    <li><b>Rewards that reward practice.</b> 30 mission patches (for things like 3-star levels, fact streaks, finishing the chapter book, and playing several days in a row), a daily streak, ranks from Cadet to Unicorn Legend, and +3 bonus stars for finishing all three of Today's Flight Plan missions. A few special robot parts unlock only with patches. Nothing is ever bought, and there's nothing random.</li>
     <li><b>On a phone or tablet:</b> use Share → <b>Add to Home Screen</b> (iPhone) or ⋮ → <b>Add to Home screen</b> (Android). It then opens full-screen like an app, with no browser bars. The phone's Back button returns to Mission Control instead of leaving.</li>
     <li>Progress is saved in this browser on this device only. ${totalMissions?`So far: <b>${totalMissions}</b> ${plural(totalMissions,'mission')} finished and <b>★ ${progress.stars}</b> stars.`:''}</li>
   </ul></details>
@@ -167,10 +174,12 @@ function renderHome(){
   $('#star-count').textContent=progress.stars;
   $('#pilot-name').textContent=progress.name||'Space Cadet';
   $('#plan').innerHTML=planHtml();
+  $('#rank-row').innerHTML=rankHtml();
   $$('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===homeTab)));
   $('#pane').innerHTML=homeTab==='math'?zoneHtml('math'):homeTab==='words'?zoneHtml('words'):homeTab==='hangar'?hangarHtml():grownupsHtml();
 }
-function goHome(){leaveProblem();TTS.stop();stopFx();renderHome();show('home')}
+function goHome(){leaveProblem();TTS.stop();stopFx();stopBeat();renderHome();show('home')}
+function celebratePatches(){const got=checkPatches();if(got.length){navToast(`New mission patch: ${got.map(p=>p.icon+' '+p.name).join(', ')}!`);sound('win');if(homeTab==='hangar')setTimeout(renderHome,50)}}
 document.addEventListener('input',e=>{if(e.target.id==='robot-name'){robotCfg().name=e.target.value.trim().slice(0,16)||'Sprocket';save();const p=$('#robot-preview');if(p)p.innerHTML=robotSvg()}});
 document.addEventListener('click',e=>{
   const m=e.target.closest('[data-mission]');if(m&&!$('#home').hidden){startMission(m.dataset.mission,+m.dataset.level);return}
@@ -178,7 +187,10 @@ document.addEventListener('click',e=>{
   const st=e.target.closest('[data-set]');if(st){S()[st.dataset.set]=JSON.parse(st.dataset.val);save();renderHome();return}
   const sd=e.target.closest('[data-sound]');if(sd){progress.sound=sd.dataset.sound==='true';save();syncSoundBtns();renderHome();return}
   const rc=e.target.closest('[data-rcat]');if(rc){studioCat=rc.dataset.rcat;renderHome();return}
-  const ri=e.target.closest('[data-ritem]');if(ri){const [k,v]=ri.dataset.ritem.split('|');robotCfg()[k]=v;save();sound('pop');renderHome();return}
+  const ri=e.target.closest('[data-ritem]');if(ri){const [k,v]=ri.dataset.ritem.split('|'),c=robotCfg();if(c[k]!==v){c[k]=v;statBump('style')}if(k==='chest'&&v!=='boombox')stopBeat();save();sound('pop');celebratePatches();renderHome();return}
+  const rp=e.target.closest('[data-rplay]');if(rp){robotPlay(rp.dataset.rplay);if(rp.dataset.rplay==='music'){rp.textContent=$('#robot-preview').classList.contains('playing')?'⏹ Stop music':'🎵 Play music';celebratePatches()}return}
+  const ch=e.target.closest('#robot-preview .chest-hit');if(ch){robotPlay(ch.dataset.chest==='tv'?'tv':'music');if(ch.dataset.chest==='boombox'){const b=$('[data-rplay="music"]');if(b)b.textContent=$('#robot-preview').classList.contains('playing')?'⏹ Stop music':'🎵 Play music';celebratePatches()}return}
+  const rb=e.target.closest('#robot-preview');if(rb){rb.classList.remove('boop');void rb.offsetWidth;rb.classList.add('boop');sound('pop');return}
   if(e.target.id==='reset-ask'){$('#reset-row').innerHTML=`<span>This erases all stars, robot parts, and drafts on this device.</span><button type="button" class="btn btn-hot" id="reset-yes">Yes, reset</button><button type="button" class="btn" id="reset-no">Cancel</button>`;return}
   if(e.target.id==='reset-yes'){const keep={name:progress.name,sound:progress.sound,settings:progress.settings};progress={name:keep.name,stars:0,best:{},sound:keep.sound,drafts:{},played:{},settings:keep.settings};save();renderHome();return}
   if(e.target.id==='reset-no'){renderHome();return}
@@ -191,5 +203,8 @@ $('#name-form').onsubmit=e=>{e.preventDefault();progress.name=$('#name-input').v
 /* ---------------- start ---------------- */
 (function init(){
   const h=(location.hash||'').slice(1);if(['math','words','hangar','grownups'].includes(h))homeTab=h;
-  drawSky();syncSoundBtns();renderHome();
+  drawSky();syncSoundBtns();
+  const got=checkPatches();todaysPlan();renderHome();
+  const fresh=robotNewCount(),msg=[got.length?`${got.length} new mission ${plural(got.length,'patch','patches')}`:'',fresh?`${fresh} new robot ${plural(fresh,'part')}`:''].filter(Boolean).join(' and ');
+  if(msg)setTimeout(()=>navToast(`You have ${msg}! Visit the Hangar.`),700);
 })();
