@@ -5,6 +5,7 @@
 const SECTORS=[
   {id:'hw',zone:'math',title:'Homework Helper',blurb:'Bring your own problem'},
   {id:'ff',zone:'math',title:'Fact Fuel-Up',blurb:'Single-digit facts: + − × ÷'},
+  {id:'arc',zone:'math',title:'Math Arcade',blurb:'Games with a twist: aim, estimate, and solve. No clocks!'},
   {id:'pv',zone:'math',title:'Place Value Port',blurb:'Big numbers up to 100,000'},
   {id:'ops',zone:'math',title:'Operation Orbit',blurb:'Add, subtract, multiply, divide'},
   {id:'ps',zone:'math',title:'Problem-Solving Station',blurb:'Word problems, factors, patterns'},
@@ -16,7 +17,7 @@ const SECTORS=[
   {id:'wp',zone:'words',title:'Word Power',blurb:'Word parts and meanings'}
 ];
 const PLAN_GROUPS=[
-  {label:'Number skills',ids:['sub','div','mul','add','fmul','fdiv','fsub','fadd']},
+  {label:'Number skills',ids:['sub','div','mul','add','fmul','fdiv','fsub','fadd','lander','forge','angles']},
   {label:'Careful reading',ids:['story','facts','listen','saga']},
   {label:'Writing tools',ids:['caps','spell','print','comma']}
 ];
@@ -61,26 +62,26 @@ const STANDARDS=[
  ['Math'],
  ['Facts','Single-digit fact fluency (a grade 2–3 foundation for everything above)',['fadd','fsub','fmul','fdiv']],
  ['OA.1','Multiplicative comparison word problems',['oa1']],
- ['OA.3','Two-step word problems, estimation, interpreting remainders',['oa3']],
+ ['OA.3','Two-step word problems, estimation, interpreting remainders',['oa3','forge']],
  ['OA.4','Factor pairs, multiples, prime and composite (to 50)',['fac']],
  ['OA.5','Number and shape patterns that follow a rule',['pat']],
  ['NBT.1','A digit is worth 10 times the place to its right',['tenx']],
- ['NBT.2','Read and write numbers to 100,000 (words, expanded form)',['forms']],
+ ['NBT.2','Read and write numbers to 100,000 (words, expanded form)',['forms','lander']],
  ['NBT.4','Add and subtract to 100,000 with the standard algorithm',['add','sub','hw']],
  ['NBT.5','Multiply up to 3-digit × 1-digit and 2-digit × 2-digit (the app goes to 4-digit × 1-digit and 3-digit × 2-digit to match homework; area model, partial products, or lattice)',['mul','hw']],
  ['NBT.6','Divide up to 3-digit by 1-digit with remainders (the app goes to 4-digit to match homework; long division, partial quotients, or area model)',['div','oa3','hw']],
  ['NBT.7','Compare numbers to 100,000',['cmp']],
  ['NF.1','Equivalent fractions with area and length models',['nf1']],
- ['NF.2','Compare fractions (benchmarks, common parts)',['nf2']],
+ ['NF.2','Compare fractions (benchmarks, common parts)',['nf2','lander']],
  ['NF.3','Add and subtract like fractions, decompose, mixed numbers',['nf3']],
  ['NF.4','Multiply a whole number by a fraction',['nf4']],
- ['NF.6','Decimal notation for tenths and hundredths',['dec']],
+ ['NF.6','Decimal notation for tenths and hundredths',['dec','lander']],
  ['NF.7','Compare decimals to hundredths',['dec']],
  ['MD.1','Metric units and one-step metric word problems',['metric']],
  ['MD.2','Convert larger metric units to smaller ones',['metric']],
  ['MD.3','Area and perimeter',['area']],
  ['MD.4','Frequency tables, scaled bar graphs, line plots',['data']],
- ['MD.6','Angles: kinds, protractor, missing angles',['angle']],
+ ['MD.6','Angles: kinds, protractor, missing angles',['angle','angles']],
  ['MD.8','Elapsed time across the hour',['time']],
  ['G.1','Points, lines, segments, rays, parallel and perpendicular',['shape']],
  ['G.2','Classify triangles and quadrilaterals (NC uses the exclusive trapezoid definition)',['shape']],
@@ -154,6 +155,7 @@ function grownupsHtml(){
   <div class="gu-card"><h3>Settings</h3><div class="settings">${settingsHtml()}</div></div>
   <details class="gu-card"><summary><h3 style="display:inline">How it works</h3></summary><ul>
     <li><b>Step by step, not just answers.</b> Math missions walk through each step. Wrong answers get a specific tip, and the Hint button gets more direct each time.</li>
+    <li><b>Math Arcade.</b> Three games with no clock: Number Line Lander (estimate where big numbers, fractions, and decimals go), Star Forge (combine numbers with + − × ÷ to hit a target), and Angle Launch (aim a rocket by degrees on a protractor). Scores are based on accuracy, with personal bests.</li>
     <li><b>Homework Helper.</b> Type any +, −, ×, or ÷ problem from his homework and pick the method his class uses.</li>
     <li><b>Fact Fuel-Up.</b> Single-digit facts with Streak Builder and Three Strikes modes (no clock). Missed facts come back a few problems later. Timed mode stays hidden unless you turn it on above.</li>
     <li><b>Built for a rushing reader.</b> Reading questions unlock after a short "reading fuel" bar, and every answer has a <b>Prove it!</b> step: he taps the sentence that supports it.</li>

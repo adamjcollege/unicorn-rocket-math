@@ -45,7 +45,9 @@ const PATCHES=[
  ['plan1','🗺','Flight Plan Finisher','Finish all three Today\'s Flight Plan missions in one day',()=>[stats().plans||0,1]],
  ['plan5','🎯','Plan Pro','Finish Today\'s Flight Plan 5 times',()=>[stats().plans||0,5]],
  ['dj','🎵','DJ Bolt','Play music on your robot\'s boombox',()=>[stats().dj||0,1]],
- ['stylist','🎨','Robot Stylist','Change your robot\'s parts 30 times',()=>[stats().style||0,30]]
+ ['stylist','🎨','Robot Stylist','Change your robot\'s parts 30 times',()=>[stats().style||0,30]],
+ ['arcade','🕹','Arcade Ace','Play all three Math Arcade games',()=>[countOf(['lander','forge','angles'],id=>(progress.played||{})[id]),3]],
+ ['bullseye10','🎯','Sharpshooter','Land 10 bullseyes in Number Line Lander',()=>[stats().bullseye||0,10]]
 ];
 const PATCH_BY=Object.fromEntries(PATCHES.map(([id,icon,name,desc,fn])=>[id,{id,icon,name,desc,fn}]));
 const hasPatch=id=>!!(progress.patches||{})[id];
